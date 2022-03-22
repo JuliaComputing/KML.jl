@@ -1,0 +1,13 @@
+name = "KML"
+uuid = "1284bf3a-1e3d-4f4e-a7a9-b9d235a28f35"
+authors = ["Josh Day <emailjoshday@gmail.com> and contributors"]
+version = "0.1.0"
+
+[compat]
+julia = "1"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
