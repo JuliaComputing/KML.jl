@@ -24,7 +24,7 @@ abstract type AbstractContainer <: AbstractFeature end
 
 # "Geometry"
 abstract type AbstractGeometry <: AbstractObject end
-
+;
 #-----------------------------------------------------------------------------# printing
 # Each field inside an AbstractObject is either:
 #   - `attributes::ObjectAttributes` (gets printed in opening tag)
@@ -82,6 +82,7 @@ Base.@kwdef mutable struct ObjectAttributes
     id::Union{Nothing, String} = nothing
     targetId::Union{Nothing, String} = nothing
 end
+ObjectAttributes(o::Element) = ObjectAttributes(XML.attributes(o))
 function OrderedDict(o::ObjectAttributes)
     out = OrderedDict{Symbol,String}()
     !isnothing(o.id) && (out[:id] = o.id)
@@ -130,6 +131,15 @@ Base.@kwdef mutable struct FeatureElements
     # ExtendedData
 end
 children(o::FeatureElements) = _children(o, fieldnames(FeatureElements)...)
+
+function FeatureElements(o::Element)
+    d = XML.attributes(o)
+    out = FeatureElements()
+    for field in fieldnames(FeatureElements)
+        setfield!(out, field, get(d, field, getfield(out,field)))
+    end
+    return out
+end
 
 
 #-----------------------------------------------------------------------------# Unknown
@@ -264,6 +274,22 @@ AbstractTrees.printnode(io::IO, o::KMLFile) = print(io, "KML.KMLFile")
 AbstractTrees.children(o::KMLFile) = (o.prolog..., o.root)
 
 #-----------------------------------------------------------------------------# "parsing"
+function kml(o::Element)
+    t = XML.tag(o)
+    if t == "Document"
+        Document(attributes=ObjectAttributes(o), feature=FeatureElements(o)) # TODO: start here
+    elseif t == "Folder"
+    elseif t == "Placemark"
+    elseif t == "Point"
+    elseif t == "LineString"
+    elseif t == "LinearRing"
+    elseif t == "Polygon"
+    elseif t == "MultiGeometry"
+    else
+        Unknown(element = o)
+    end
+end
+
 function to_kml(o::XML.Document)
     f = KMLFile()
     f.prolog = o.prolog
