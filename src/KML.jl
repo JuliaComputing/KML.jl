@@ -1,9 +1,8 @@
 module KML
 
-
-using GeoInterface
 using OrderedCollections: OrderedDict
 using AbstractTrees
+import AbstractTrees: children
 using XML
 import XML: Element, showxml
 
@@ -132,12 +131,14 @@ Base.@kwdef mutable struct FeatureElements
 end
 children(o::FeatureElements) = _children(o, fieldnames(FeatureElements)...)
 
+
 #-----------------------------------------------------------------------------# Unknown
 # If we don't know how to convert the `XML.Element`, dump it into here
 Base.@kwdef mutable struct Unknown <: AbstractObject
     attributes::ObjectAttributes = ObjectAttributes()
-    element::Element
+    element::Union{Nothing,Element} = nothing
 end
+children(o::Unknown) = children(o.element)
 
 #-----------------------------------------------------------------------------# Document
 """
@@ -194,6 +195,7 @@ Base.@kwdef mutable struct Point <: AbstractGeometry
     coordinates::Vector{Float64} = [0, 0]
 end
 children(o::Point) = _children(o, :extrude, :altitudeMode, :coordinates)
+
 
 xml_string(x::Bool) = x ? "1" : "0"
 xml_string(x::Vector{Float64}) = join(x, ",")
@@ -252,7 +254,7 @@ children(o::MultiGeometry) = o.geometries
 
 
 #-----------------------------------------------------------------------------# KMLFile
-Base.@kwdef struct KMLFile
+Base.@kwdef mutable struct KMLFile
     prolog::Vector{Union{Comment, Declaration, DTD}} = [Declaration("xml", OrderedDict(:version=>"1.0", :encoding=>"UTF-8"))]
     root::Element = XML.h("kml"; xmlns="http://www.opengis.net/kml/2.2", var"xmlns:gx"="http://www.google.com/kml/ext/2.2")
 end
@@ -281,17 +283,17 @@ tag2type = Dict(
 function to_kml(o::Element)
     t = XML.tag(o)
     out = get(tag2type, t, Unknown)()
-    out.attributes = ObjectAttributes(XML.get_attributes(o))
+    out.attributes = ObjectAttributes(XML.attributes(o))
     populate_elements!(out, o)
     out
 end
 
 function populate_elements!(f::FeatureElements, o::Element)
     c = children(o)
-    for (tag, Type) in [(:name, String), (:visibility, Bool), (:open, Bool), (var"atom:author", String),
-                        (:var"atom:link", String), (:address, String), (var"xal:AddressDetails", String),
+    for (tag, Type) in [(:name, String), (:visibility, Bool), (:open, Bool), (:var"atom:author", String),
+                        (:var"atom:link", String), (:address, String), (:var"xal:AddressDetails", String),
                         (:phoneNumber, String), (:description, String)]
-        x = filter(x -> XML.tag(x) == tag)
+        x = filter(x -> XML.tag(x) == tag, c)
         if !isempty(x)
             child = x[1]
             setfield!(f, tag, parse(Type, children(child)[1]))
@@ -303,9 +305,13 @@ populate_elements!(init::Unknown, o::Element) = nothing
 
 function populate_elements!(init::Document, o::Element)
     c = children(o)
-    populate_elements!(init.features, o)
+    populate_elements!(init.feature, o)
     init.style_children = [Unknown(element=x) for x in filter(x -> XML.tag(x) == "Style", c)]
-    init.feature_children = to_kml.(filter(x -> XML.tag(x) != "Style"))
+    init.feature_children = to_kml.(filter(x -> XML.tag(x) != "Style", c))
+end
+
+function populate_elements!(init, o::Element)
+    @warn "don't know how to do this yet"
 end
 
 end

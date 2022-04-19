@@ -5,12 +5,8 @@ version = "0.1.0"
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
-EzXML = "8f5d6c58-4d21-5cfd-889c-e3ad7ee6a615"
-GeoInterface = "cf35fbd7-0cd7-5166-be24-54bfbe79505f"
 OrderedCollections = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 XML = "72c71f33-b9b6-44de-8c94-c961784809e2"
-XMLDict = "228000da-037f-5747-90a9-8195ccbf91a5"
-ZipFile = "a5390f91-8eb1-5f08-bee0-b1d1ffed6cea"
 
 [compat]
 julia = "1"

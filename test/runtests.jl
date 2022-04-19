@@ -1,6 +1,7 @@
 using KML
+using XML: XML
 using Test
 
 @testset "KML.jl" begin
-    # Write your tests here.
+    doc = XML.Document(joinpath(@__DIR__, "example.kml"))
 end
