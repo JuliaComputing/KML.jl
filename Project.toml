@@ -9,6 +9,7 @@ OrderedCollections = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 XML = "72c71f33-b9b6-44de-8c94-c961784809e2"
 
 [compat]
+XML = "0.1"
 julia = "1"
 
 [extras]
