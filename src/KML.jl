@@ -7,11 +7,15 @@ using XML
 import XML: Element, showxml
 
 #----------------------------------------------------------------------------# utils
-const current_id = Ref(0)
-const INDENT = "    "
+const current_ids = Ref(Dict{String, Int}())
+const INDENT = "  "
 
-next_id(prefix="id") = "$(prefix)_$(current_id[] += 1)"
+function next_id(prefix="id")
+    current_ids[][prefix] = get(current_ids[], prefix, 0) + 1
+    return prefix * "_$(current_ids[][prefix])"
+end
 
+#-----------------------------------------------------------------------------# types.jl
 include("types.jl")
 
 end #module

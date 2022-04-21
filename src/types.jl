@@ -7,14 +7,18 @@ abstract type ElementSet end  # Common elements for an Object (e.g. Feature)
 Base.show(io::IO, o::ElementSet) = showxml(io, o)
 showxml(io::IO, o::ElementSet; depth=0) = show_all_fields(io, o; depth)
 
-
+macro default(field, type)
+    esc(quote
+        $field::Union{Nothing, $type} = nothing
+    end)
+end
 
 #-----------------------------------------------------------------------------# Object
 abstract type Object end  # has fields `id` and `targetId`
 
 macro object_attributes()
     esc(quote
-        id::Union{Nothing, String} = nothing
+        id::Union{Nothing, String} = next_id()
         targetId::Union{Nothing, String} = nothing
     end)
 end
@@ -22,7 +26,7 @@ end
 Base.show(io::IO, o::Object) = showxml(io, o)
 
 function showxml(io::IO, o::T; depth=0) where {T<:Object}
-    tag = replace(string(T), "KML." => "")
+    tag = replace(string(T), "KML." => "", "GX" => "gx:")
     printstyled(io, INDENT^depth, '<', tag, attrs(o), '>', '\n'; color=:light_cyan)
     show_all_fields(io, o; depth = depth + 1)
     printstyled(io, INDENT ^ depth, "</", tag, '>'; color=:light_cyan)
@@ -38,13 +42,26 @@ function show_all_fields(io::IO, o::T; depth=0) where {T}
         x = getfield(o, field)
         if !isnothing(x) && field ∉ [:id, :targetId]
             if x isa Object || x isa KMLElement
-                showxml(io, x; depth = depth)
+                if tag == string(typeof(x))
+                    showxml(io, x; depth = depth)
+                else
+                    println(io, INDENT^depth, '<', tag, '>')
+                    showxml(io, x; depth = depth + 1)
+                    print(io, '\n', INDENT^depth, "</", tag, '>')
+                end
             elseif x isa ElementSet
                 show_all_fields(io, x; depth)
             else
                 printstyled(io, INDENT ^ depth, '<', tag, '>'; color=:light_green)
-                print(io, xml_string(x))
-                printstyled(io, "</", tag, '>'; color=:light_green)
+                s = xml_string(x)
+                if occursin('\n', s)
+                    println(io)
+                    println(io, INDENT^(depth+1), replace(s, '\n' => "\n$(INDENT^(depth+1))"))
+                    printstyled(io, INDENT^depth, "</", tag, '>'; color=:light_green)
+                else
+                    print(io, s)
+                    printstyled(io, "</", tag, '>'; color=:light_green)
+                end
             end
             println(io)
         end
@@ -53,7 +70,7 @@ end
 
 xml_string(x::Bool) = x ? "1" : "0"
 xml_string(x::Union{Vector, Tuple}) = join(x, ",")
-xml_string(x::Vector{Vector{Float64}}) = join(xml_string.(x), '\n')
+xml_string(x::Vector{<:Union{Vector, Tuple}}) = join(xml_string.(x), '\n')
 xml_string(x) = string(x)
 
 #-----------------------------------------------------------------------------# Feature
@@ -92,9 +109,6 @@ abstract type ColorStyle <: SubStyle end
 abstract type GXTourPrimitive <: Object end
 
 
-
-
-
 # =========================================================================== # Concrete Types
 
 #-----------------------------------------------------------------------------# "Enums"
@@ -110,6 +124,18 @@ viewRefreshMode = (never=:never, onStop=:onStop, onRequest=:onRequest, onRegion=
 shape = (rectangle=:rectangle, cylinder=:cylinder, sphere=:sphere)
 
 gridOrigin = (lowerLeft=:lowerLeft, upperLeft=:upperLeft)
+
+displayMode = (default=:default, hide=:hide)
+
+listItemType = (check=:check, checkOffOnly=:checkOffOnly, checkHideChildren=:checkHideChildren,
+                radioFolder=:radioFolder)
+
+macro altitude_mode_elements()
+    esc(quote
+        altitudeMode::Union{Nothing, Symbol}    = nothing
+        gx_altitudeMode::Union{Nothing, Symbol} = nothing
+    end)
+end
 
 #-----------------------------------------------------------------------------# ExtendedData
 # TODO: details
@@ -136,8 +162,8 @@ Base.@kwdef mutable struct LatLonBox <: Object
     rotation::Float64 = 0.0
 end
 
-#-----------------------------------------------------------------------------# LatLonQuad (gx:LatLonQuad)
-Base.@kwdef mutable struct LatLonQuad <: Object
+#-----------------------------------------------------------------------------# GXLatLonQuad
+Base.@kwdef mutable struct GXLatLonQuad <: Object
     @object_attributes
     coordinates::Vector{NTuple{2, Float64}}
 end
@@ -160,8 +186,7 @@ Base.@kwdef mutable struct LatLonAltBox <: Object
     west::Float64
     minAltitude::Union{Nothing, Float64} = nothing
     maxAltitude::Union{Nothing, Float64} = nothing
-    altitudeMode::Union{Nothing, Symbol} = nothing
-    gx_altitudeMode::Union{Nothing, Symbol} = nothing
+    @altitude_mode_elements
 end
 
 #-----------------------------------------------------------------------------# Region
@@ -185,10 +210,10 @@ macro feature_elements()
         name::Union{Nothing, String}                    = nothing
         visibility::Union{Nothing, Bool}                = nothing
         open::Union{Nothing, Bool}                      = nothing
-        atom_author::Union{Nothing, String}        = nothing
-        atom_link::Union{Nothing, String}          = nothing
+        atom_author::Union{Nothing, String}             = nothing
+        atom_link::Union{Nothing, String}               = nothing
         address::Union{Nothing, String}                 = nothing
-        xal_AddressDetails::Union{Nothing, String} = nothing
+        xal_AddressDetails::Union{Nothing, String}      = nothing
         phoneNumber::Union{Nothing, String}             = nothing
         Snippet::Union{Nothing, Snippet}                = nothing
         description::Union{Nothing, String}             = nothing
@@ -197,7 +222,7 @@ macro feature_elements()
         styleURL::Union{Nothing, String}                = nothing
         StyleSelector::Union{Nothing, StyleSelector}    = nothing
         region::Union{Nothing, Region}                  = nothing
-        extended_data::Union{Nothing, ExtendedData}     = nothing
+        ExtendedData::Union{Nothing, ExtendedData}      = nothing
     end)
 end
 
@@ -232,6 +257,50 @@ Base.@kwdef mutable struct Icon <: Object
     httpQuery::Union{Nothing, String}           = nothing
 end
 
+#-----------------------------------------------------------------------------# Location
+Base.@kwdef mutable struct Location <: Object
+    @object_attributes
+    longitude::Union{Nothing, Float64}  = nothing
+    latitude::Union{Nothing, Float64}   = nothing
+    altitude::Union{Nothing, Float64}   = nothing
+end
+
+#-----------------------------------------------------------------------------# Orientation
+Base.@kwdef mutable struct Orientation <: Object
+    @object_attributes
+    heading::Union{Nothing, Float64}  = nothing
+    tilt::Union{Nothing, Float64}   = nothing
+    roll::Union{Nothing, Float64}   = nothing
+end
+
+#-----------------------------------------------------------------------------# Scale
+Base.@kwdef mutable struct Scale <: Object
+    @object_attributes
+    x::Union{Nothing, Float64}  = nothing
+    y::Union{Nothing, Float64}   = nothing
+    z::Union{Nothing, Float64}   = nothing
+end
+
+#-----------------------------------------------------------------------------# Model
+Base.@kwdef mutable struct Alias <: KMLElement
+    targetHref::Union{Nothing, String} = nothing
+    sourceHref::Union{Nothing, String} = nothing
+end
+
+Base.@kwdef mutable struct ResourceMap <: KMLElement
+    Aliases::Union{Nothing, Vector{Alias}} = nothing
+end
+
+Base.@kwdef mutable struct Model <: Geometry
+    @object_attributes
+    @altitude_mode_elements
+    Location::Union{Nothing, Location}          = nothing
+    Orientation::Union{Nothing, Orientation}    = nothing
+    Scale::Union{Nothing, Scale}                = nothing
+    Link::Union{Nothing, Link}                  = nothing
+    ResourceMap::Union{Nothing, ResourceMap}    = nothing
+end
+
 #-----------------------------------------------------------------------------# Overlay
 macro overlay_elements()
     esc(quote
@@ -244,10 +313,64 @@ end
 #-----------------------------------------------------------------------------# Point
 Base.@kwdef mutable struct Point <: Geometry
     @object_attributes
-    extrude::Union{Nothing, Bool} = nothing
-    altitudeMode::Union{Nothing, Symbol} = nothing
-    gx_altitudeMode::Union{Nothing, Symbol} = nothing
-    coordinates::Union{NTuple{2,Float64}, NTuple{3, Float64}} = (0.0, 0.0) # lon / lat / (alt)
+    extrude::Union{Nothing, Bool}           = nothing
+    @altitude_mode_elements
+    coordinates::Tuple                      = (0.0, 0.0) # lon / lat / (alt)
+end
+
+#-----------------------------------------------------------------------------# LineString
+Base.@kwdef mutable struct LineString <: Geometry
+    @object_attributes
+    gx_altitudeOffset::Union{Nothing, Float64}      = nothing
+    extrude::Union{Nothing, Bool}                   = nothing
+    tesselate::Union{Nothing, Bool}                 = nothing
+    @altitude_mode_elements
+    gx_drawOrder::Union{Nothing, Int}               = nothing
+    coordinates::Vector{Tuple}                      = []
+end
+
+#-----------------------------------------------------------------------------# LinearRing
+Base.@kwdef mutable struct LinearRing <: Geometry
+    @object_attributes
+    gx_altitudeOffset::Union{Nothing, Float64}      = nothing
+    extrude::Union{Nothing, Bool}                   = nothing
+    tesselate::Union{Nothing, Bool}                 = nothing
+    @altitude_mode_elements
+    coordinates::Vector{Tuple}                      = [(0,0), (0,0), (0,0), (0,0)]
+end
+
+#-----------------------------------------------------------------------------# Polygon
+Base.@kwdef mutable struct Polygon <: Geometry
+    @object_attributes
+    extrude::Union{Nothing, Bool}                   = nothing
+    tesselate::Union{Nothing, Bool}                 = nothing
+    outerBoundaryIs::Union{Nothing, LinearRing}     = nothing
+    innerBoundaryIs::Union{Nothing, LinearRing}     = nothing
+end
+
+#-----------------------------------------------------------------------------# MultiGeometry
+Base.@kwdef mutable struct MultiGeometry <: Geometry
+    @object_attributes
+    Geometries::Union{Nothing, Vector{Geometry}} = nothing
+end
+
+#-----------------------------------------------------------------------------# GXTrack
+Base.@kwdef mutable struct GXTrack <: Geometry
+    @object_attributes
+    @altitude_mode_elements
+    when::Union{Nothing, String}                = nothing
+    gx_coord::Union{Nothing, String}            = nothing
+    gx_angles::Union{Nothing, String}           = nothing
+    Model::Union{Nothing, Model}                = nothing
+    ExtendedData::Union{Nothing, ExtendedData}  = nothing
+end
+
+#-----------------------------------------------------------------------------# GXMultiTrack
+Base.@kwdef mutable struct GXMultiTrack
+    @object_attributes
+    @altitude_mode_elements
+    gx_interpolate::Union{Nothing, Bool}        = nothing
+    GXTrack::Union{Nothing, Vector{GXTrack}}    = nothing
 end
 
 #-----------------------------------------------------------------------------# PhotoOverlay
@@ -287,7 +410,7 @@ Base.@kwdef mutable struct ScreenOverlay <: Overlay
     screenXY::Union{Nothing, String}    = nothing # FIXME
     rotationXY::Union{Nothing, String}  = nothing # FIXME
     size::Union{Nothing, String}        = nothing # FIXME
-    rotation::Union{Nothing, Float64} = nothing
+    rotation::Union{Nothing, Float64}   = nothing
 end
 
 #-----------------------------------------------------------------------------# GroundOverlay
@@ -296,10 +419,9 @@ Base.@kwdef mutable struct GroundOverlay <: Overlay
     @feature_elements
     @overlay_elements
     altitude::Union{Nothing, Float64}           = nothing
-    altitudeMode::Union{Nothing, Symbol}        = nothing
-    gx_altitudeMode::Union{Nothing, Symbol}     = nothing
+    @altitude_mode_elements
     LatLonBox::Union{Nothing, LatLonBox}        = nothing
-    gx_LatLonQuad::Union{Nothing, LatLonQuad}   = nothing
+    GXLatLonQuad::Union{Nothing, GXLatLonQuad}  = nothing
 end
 
 #-----------------------------------------------------------------------------# NetworkLink
@@ -309,4 +431,108 @@ Base.@kwdef mutable struct NetworkLink <: Feature
     refreshVisibility::Union{Nothing,Bool}  = nothing
     flyToView::Union{Nothing,Bool}          = nothing
     Link::Link                              = Link()
+end
+
+#-----------------------------------------------------------------------------# GXPlaylist
+Base.@kwdef mutable struct GXPlaylist
+    @object_attributes
+    GXTourPrimitives::Vector{GXTourPrimitive} = []
+end
+
+#-----------------------------------------------------------------------------# GXTour
+Base.@kwdef mutable struct GXTour <: Feature
+    @object_attributes
+    name::Union{Nothing, String}            = nothing
+    description::Union{Nothing, String}     = nothing
+    GXPlaylist::Union{Nothing, GXPlaylist} = nothing
+end
+
+#-----------------------------------------------------------------------------# Schema
+Base.@kwdef mutable struct SimpleField <: KMLElement
+    type::String
+    name::String
+    displayName::Union{Nothing, String} = nothing
+end
+function showxml(io::IO, o::SimpleField; depth=0)
+    println(io, INDENT^depth, "<SimpleField type=", repr(o.type), " name=", repr(o.name), '>')
+    !isnothing(o.displayName) && println(io, INDENT^ (depth+1), "<displayName>", o.displayName, "</displayName>")
+    println(io, INDENT^depth, "</SimpleField>")
+end
+
+Base.@kwdef mutable struct Schema <: KMLElement
+    id::String = next_id("schema")
+    SimpleFields::Union{Nothing, Vector{SimpleField}} = nothing
+end
+function showxml(io::IO, o::Schema; depth=0)
+    println(io, INDENT^depth, "<Schema id=", repr(o.id), '>')
+    foreach(o.SimpleFields) do child
+        showxml(io, x; depth=depth+1)
+        println(io)
+    end
+    println(io, INDENT^depth, "</Schema>")
+end
+
+
+#-----------------------------------------------------------------------------# Folder
+Base.@kwdef mutable struct Folder <: Container
+    @object_attributes
+    @feature_elements
+    Features::Union{Nothing, Vector{Feature}} = nothing
+end
+
+#-----------------------------------------------------------------------------# Document
+Base.@kwdef mutable struct Document <: Container
+    @object_attributes
+    @feature_elements
+    Schemas::Union{Nothing, Vector{Schema}}     = nothing
+    Features::Union{Nothing, Vector{Feature}}   = nothing
+end
+
+#-----------------------------------------------------------------------------# Style
+Base.@kwdef mutable struct BalloonStyle <: SubStyle
+    @object_attributes
+    @default bgColor String
+    @default textColor String
+    @default text String
+    @default displayMode Symbol
+end
+
+# TODO: clean up
+Base.@kwdef mutable struct ItemIcon <: Object # lie
+    @default state Symbol  # open, closed, error, fetching0, fetching1, or fetching2
+    @default href String
+end
+
+Base.@kwdef mutable struct ListStyle <: SubStyle
+    @object_attributes
+    @default listItemType Symbol
+    @default bgColor String
+    @default ItemIcons Vector{ItemIcon}
+end
+
+# TODO: Start here
+Base.@kwdef mutable struct LineStyle <: ColorStyle
+    @object_attributes
+end
+
+Base.@kwdef mutable struct PolyStyle <: ColorStyle
+    @object_attributes
+end
+
+Base.@kwdef mutable struct IconStyle <: ColorStyle
+    @object_attributes
+end
+
+Base.@kwdef mutable struct LabelStyle <: ColorStyle
+    @object_attributes
+end
+
+Base.@kwdef mutable struct Style <: StyleSelector
+    @object_attributes
+    @default IconStyle      IconStyle
+    @default LabelStyle     LabelStyle
+    @default LineStyle      LineStyle
+    @default PolyStyle      PolyStyle
+    @default BalloonStyle   BalloonStyle
+    @default ListStyle      ListStyle
 end
