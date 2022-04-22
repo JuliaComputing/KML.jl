@@ -549,7 +549,7 @@ end
 Base.@kwdef mutable struct gx_FlyTo <: gx_TourPrimitive
     @object
     @option gx_duration::Float64
-    @option gx_flyToMode::Enum.flyToMode
+    @option gx_flyToMode::Enums.flyToMode
     @option AbstractView::AbstractView
 end
 #-----------------------------------------------------------------------------# gx_SoundCue
