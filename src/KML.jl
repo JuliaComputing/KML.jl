@@ -51,7 +51,6 @@ macro option(expr)
 end
 
 
-
 #-----------------------------------------------------------------------------# KMLElement
 # `attr_names` fields print as attributes, everything else as an element
 abstract type KMLElement{attr_names} end
@@ -97,6 +96,26 @@ function showxml(io::IO, o::T; depth=0) where {attr_names, T<:KMLElement{attr_na
         end
     end
     printstyled(io, INDENT ^ depth, "</", tag, '>'; color=:light_cyan)
+end
+
+#-----------------------------------------------------------------------------# KMLFile
+mutable struct KMLFile
+    kml_children::Vector{KMLElement}
+end
+KMLFile(content::KMLElement...) = KMLFile(collect(content))
+
+Base.push!(o::KMLFile, el::KMLElement) = push!(o.kml_children, el)
+
+Base.show(io::IO, o::KMLFile) = showxml(io, o)
+
+function showxml(io::IO, o::KMLFile)
+    println(io, """<?xml version="1.0" encoding="UTF-8"?>""")
+    println(io, """<kml xmlns="http://earth.google.com/kml/2.2">""")
+    foreach(o.kml_children) do child
+        showxml(io, child; depth=1)
+        println(io)
+    end
+    println(io, "</kml>")
 end
 
 #-----------------------------------------------------------------------------# Object

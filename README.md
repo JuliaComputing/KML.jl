@@ -8,6 +8,61 @@ package.
 <br>
 <br>
 
+## Quickstart
+
+```julia
+using KML: KMLFile, Document, Placemark, Point
+
+file = KMLFile()
+
+doc = Document()
+
+push!(file, doc)
+
+place = Placemark()
+
+doc.Features = [place]
+
+place.Geometry = Point(coordinates=(77.0369, 38.9072))
+
+place.name = "Washington, D.C."
+
+# alternatively
+
+file = KMLFile(
+    Document(
+        Features=[
+            Placemark(
+                Geometry=Point(
+                    coordinates=(77.0369, 38.9072)
+                ),
+                name="Washington, D.C."
+            )
+        ]
+    )
+)
+```
+
+Result:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://earth.google.com/kml/2.2">
+  <Document>
+    <Placemark>
+      <name>Washington, D.C.</name>
+      <Point>
+        <coordinates>77.0369,38.9072</coordinates>
+      </Point>
+    </Placemark>
+  </Document>
+</kml>
+```
+
+
+<br>
+<br>
+
 ## KML Object-to-Julia mapping
 
 <br>
