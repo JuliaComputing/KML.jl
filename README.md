@@ -11,24 +11,6 @@ package.
 ## Quickstart
 
 ```julia
-using KML: KMLFile, Document, Placemark, Point
-
-file = KMLFile()
-
-doc = Document()
-
-push!(file, doc)
-
-place = Placemark()
-
-doc.Features = [place]
-
-place.Geometry = Point(coordinates=(77.0369, 38.9072))
-
-place.name = "Washington, D.C."
-
-# alternatively
-
 file = KMLFile(
     Document(
         Features=[
@@ -43,7 +25,6 @@ file = KMLFile(
 )
 ```
 
-Result:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
