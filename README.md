@@ -1,4 +1,4 @@
-<h1 align="center">KML</h1>
+<h1 align="center">KML.jl</h1>
 
 **Working with Google Earth's KML format in Julia.**
 
