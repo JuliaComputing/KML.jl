@@ -21,6 +21,7 @@ module Enums
 @enum units fraction pixels insetPixels
 @enum styleState open closed error fetching0 fetching1 fetching2
 @enum colorMode normal random
+@enum flyToMode smooth bounce
 end
 
 
@@ -72,7 +73,7 @@ function showxml(io::IO, o::T; depth=0) where {attr_names, T<:KMLElement{attr_na
     element_names = setdiff(fieldnames(T), attr_names)
     for (k, v) in zip(element_names, getfield.(Ref(o), element_names))
         if v isa KMLElement
-            show(io, v; depth = depth + 1)
+            showxml(io, v; depth = depth + 1)
             println(io)
         elseif v isa Vector{<:KMLElement}
             map(v) do child
@@ -518,6 +519,54 @@ end
 Base.@kwdef mutable struct StyleMap <: StyleSelector
     @object
     @option Pairs::Vector{Pair}
+end
+
+
+#-===========================================================================-# gx_TourPrimitives
+#-----------------------------------------------------------------------------# gx_AnimatedUpdate
+Base.@kwdef mutable struct Change <: KMLElement{()}
+    child::KMLElement
+end
+Base.@kwdef mutable struct Create <: KMLElement{()}
+    child::KMLElement
+end
+Base.@kwdef mutable struct Delete <: KMLElement{()}
+    child::KMLElement
+end
+Base.@kwdef mutable struct Update <: KMLElement{()}
+    targetHref::String
+    @option Change::Change
+    @option Create::Create
+    @option Delete::Delete
+end
+Base.@kwdef mutable struct gx_AnimatedUpdate <: gx_TourPrimitive
+    @object
+    @option gx_duration::Float64
+    @option Update::Update
+    @option gx_delayedStart::Float64
+end
+#-----------------------------------------------------------------------------# gx_FlyTo
+Base.@kwdef mutable struct gx_FlyTo <: gx_TourPrimitive
+    @object
+    @option gx_duration::Float64
+    @option gx_flyToMode::Enum.flyToMode
+    @option AbstractView::AbstractView
+end
+#-----------------------------------------------------------------------------# gx_SoundCue
+Base.@kwdef mutable struct gx_SoundCue <: gx_TourPrimitive
+    @object
+    @option href::String
+    @option gx_delayedStart::Float64
+end
+#-----------------------------------------------------------------------------# gx_TourControl
+Base.@kwdef mutable struct gx_TourControl
+    @object
+    gx_playMode::String = "pause"
+end
+#-----------------------------------------------------------------------------# gx_Wait
+Base.@kwdef mutable struct gx_Wait
+    @object
+    @option gx_duration::Float64
 end
 
 end #module
