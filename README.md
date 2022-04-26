@@ -86,7 +86,7 @@ E.g.
     - e.g. `pt.coordinates` gets written as `<coordinates>$(xml_string(pt.coordinates))</coordinates>`
 
 - Uppercased fields match their type.
-    - e.g. The `Geometry` field of a `Placemark` must a `Geometry` (abstract type) like `Point`.
+    - e.g. The `Geometry` field of a `Placemark` must be a `Geometry` (abstract type) like `Point`.
 
 ```julia
 p = PlaceMark()
