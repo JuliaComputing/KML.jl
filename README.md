@@ -13,12 +13,10 @@ package.
 ```julia
 file = KMLFile(
     Document(
-        Features=[
+        Features = Feature[
             Placemark(
-                Geometry=Point(
-                    coordinates=(77.0369, 38.9072)
-                ),
-                name="Washington, D.C."
+                Geometry = Point(coordinates=(77.0369, 38.9072)),
+                name = "Washington, D.C."
             )
         ]
     )
@@ -44,30 +42,79 @@ file = KMLFile(
 <br>
 <br>
 
-## KML Object-to-Julia mapping
 
-<br>
+## KML Objects ←→ Julia structs
 
-####  Each `Object` is a `struct`, constructed with keyword arguments only.
+This package is designed to be used intuitively alongside [Google's KML Reference Page](https://developers.google.com/kml/documentation/kmlreference).  Thus, there are rules that guide the mapping between KML (XML) Objects and Julia structs.
+
+1. In Julia, each `Object` is constructed with keyword arguments only.
+2. These keyword arguments are the child elements of the `Object`.
 
 ```julia
-pt = Point(coordinates=(0,1))
+Point(; coordinates=(0,1))
+# <Point>
+#   <coordinates>0,1</coordinates>
+# </Point>
 ```
 
-- In XML, this becomes
-
-```xml
-<Point>
-    <coordinates>0.0,1.0</coordinates>
-</Point>
-```
-
-- Most keyword arguments are optional.  They can be set after construction.
+3. Arguments are `nothing` by default. They can be set after construction.
 
 ```julia
 pt = Point()
+# <Point />
 
 pt.coordinates = (2,3)
+pt
+# <Point>
+#   <coordinates>2,3</coordinates>
+# </Point>
+```
+
+4. Some child elements are also `Object`s.  The argument matches the type name.
+
+```julia
+pl = PlaceMark()
+
+# A Placemark accepts any `Geometry`, which is an abstract type (Point <: Geometry)
+pl.Geometry = Point(coordinates=(4, 5))
+```
+
+5. Some `Object`s can have several children of the same type.  Fields with plural names expect a `Vector`.
+
+```julia
+mg = MultiGeometry()
+
+mg.Geometries = [Point(coordinates=(0,1)), Point(coordinates=(2,3))]
+```
+
+6. Google extensions use `_` rather than `:`.  E.g. `gx:altitudeMode` → `gx_altitudeMode`
+
+#### For a concrete example, examine the fields of a `KML.Document`:
+
+```
+Fields
+≡≡≡≡≡≡≡≡
+
+id                 :: Union{Nothing, String}
+targetId           :: Union{Nothing, String}
+name               :: Union{Nothing, String}
+visibility         :: Union{Nothing, Bool}
+open               :: Union{Nothing, Bool}
+atom_author        :: Union{Nothing, String}
+atom_link          :: Union{Nothing, String}
+address            :: Union{Nothing, String}
+xal_AddressDetails :: Union{Nothing, String}
+phoneNumber        :: Union{Nothing, String}
+Snippet            :: Union{Nothing, KML.Snippet}
+description        :: Union{Nothing, String}
+AbstractView       :: Union{Nothing, KML.AbstractView}
+TimePrimitive      :: Union{Nothing, KML.TimePrimitive}
+styleURL           :: Union{Nothing, String}
+StyleSelector      :: Union{Nothing, KML.StyleSelector}
+region             :: Union{Nothing, KML.Region}
+ExtendedData       :: Union{Nothing, KML.ExtendedData}
+Schemas            :: Union{Nothing, Vector{KML.Schema}}
+Features           :: Union{Nothing, Vector{KML.Feature}}
 ```
 
 <br>
@@ -75,31 +122,3 @@ pt.coordinates = (2,3)
 #### Google extensions (things with `gx:` in the name) are renamed to use `_`:
 
 E.g.
-- `gx:altitudeMode` → `gx_altitudeMode`
-- `gx:Tour` → `gx_Tour`
-
-<br>
-
-#### The fields of a struct are KML elements.
-
-- Lowercased fields are elements where `field_name == tag`
-    - e.g. `pt.coordinates` gets written as `<coordinates>$(xml_string(pt.coordinates))</coordinates>`
-
-- Uppercased fields match their type.
-    - e.g. The `Geometry` field of a `Placemark` must be a `Geometry` (abstract type) like `Point`.
-
-```julia
-p = PlaceMark()
-
-p.Geometry = Point(coordinates=(4,5))
-```
-
-- There are rare exceptions to lower/upper casing: fields of `ScreenOverlay`, extensions like `gx_Track`.
-
-- Fields with plural names expect a `Vector` of the associated type.
-
-```julia
-mg = MultiGeometry()
-
-mg.Geometries = [Point(coordinates=(0,1)), Point(coordinates=(2,3))]
-```

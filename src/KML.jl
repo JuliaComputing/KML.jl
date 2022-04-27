@@ -1,8 +1,6 @@
 module KML
 
 using OrderedCollections: OrderedDict
-using AbstractTrees
-import AbstractTrees: children
 using XML
 import XML: Element, showxml
 
