@@ -2,7 +2,7 @@
 
 **Working with Google Earth's KML format in Julia.**
 
-This package takes inspiration from Python's [simplekiml](https://simplekml.readthedocs.io/en/latest/)
+This package takes inspiration from Python's [simplekml](https://simplekml.readthedocs.io/en/latest/)
 package.
 
 <br>
