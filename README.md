@@ -87,7 +87,12 @@ mg = MultiGeometry()
 mg.Geometries = [Point(coordinates=(0,1)), Point(coordinates=(2,3))]
 ```
 
-6. Google extensions use `_` rather than `:`.  E.g. `gx:altitudeMode` → `gx_altitudeMode`
+6. Tags/objects use `_` rather than `:`.  E.g. `gx:altitudeMode` → `gx_altitudeMode`
+
+
+<br><br>
+
+---
 
 #### For a concrete example, examine the fields of a `KML.Document`:
 
@@ -107,18 +112,12 @@ xal_AddressDetails :: Union{Nothing, String}
 phoneNumber        :: Union{Nothing, String}
 Snippet            :: Union{Nothing, KML.Snippet}
 description        :: Union{Nothing, String}
-AbstractView       :: Union{Nothing, KML.AbstractView}
-TimePrimitive      :: Union{Nothing, KML.TimePrimitive}
+AbstractView       :: Union{Nothing, KML.AbstractView}    # Camera or LookAt
+TimePrimitive      :: Union{Nothing, KML.TimePrimitive}   # TimeSpan or TimeMap
 styleURL           :: Union{Nothing, String}
-StyleSelector      :: Union{Nothing, KML.StyleSelector}
+StyleSelector      :: Union{Nothing, KML.StyleSelector}   # Style or StyleMap
 region             :: Union{Nothing, KML.Region}
 ExtendedData       :: Union{Nothing, KML.ExtendedData}
 Schemas            :: Union{Nothing, Vector{KML.Schema}}
-Features           :: Union{Nothing, Vector{KML.Feature}}
+Features           :: Union{Nothing, Vector{KML.Feature}} # Vector of any Type <: Feature
 ```
-
-<br>
-
-#### Google extensions (things with `gx:` in the name) are renamed to use `_`:
-
-E.g.

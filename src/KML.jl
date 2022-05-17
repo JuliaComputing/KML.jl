@@ -1,6 +1,7 @@
 module KML
 
 using OrderedCollections: OrderedDict
+using GeoInterface: GeoInterface
 using XML
 import XML: Element, showxml
 
@@ -120,10 +121,14 @@ end
 abstract type Object <: KMLElement{(:id, :targetId)} end
 
 abstract type Feature <: Object end
+# GeoInterface.isfeature(::Type{Feature}) = true
+# GeoInterface.properties(::Type{T}) where {T<:Feature} = setdiff(fieldnames(T), (:Geometry, :Geometries))
+# GeoInterface.geometry(o::Feature) = o.Geometry
 abstract type Overlay <: Feature end
 abstract type Container <: Feature end
 
 abstract type Geometry <: Object end
+GeoInterface.isgeometry(o::Geometry) = true
 
 abstract type StyleSelector <: Object end
 
@@ -291,8 +296,12 @@ Base.@kwdef mutable struct Point <: Geometry
     @object
     @option extrude::Bool
     @altitude_mode_elements
-    @option coordinates::Tuple
+    @option coordinates::Union{NTuple{2, Float64}, NTuple{3, Float64}}
 end
+GeoInterface.geomtype(o::Point) = GeoInterface.PointTrait()
+GeoInterface.ncoord(::GeoInterface.PointTrait, o::Point) = length(o.coordinates)
+GeoInterface.getcoord(::GeoInterface.PointTrait, o::Point, i) = o.coordinates[i]
+
 #-----------------------------------------------------------------------------# LineString <: Geometry
 Base.@kwdef mutable struct LineString <: Geometry
     @object
@@ -301,8 +310,12 @@ Base.@kwdef mutable struct LineString <: Geometry
     @option tesselate::Bool
     @altitude_mode_elements
     @option gx_drawOrder::Int
-    @option coordinates::Vector{Tuple}
+    @option coordinates::Vector{Union{NTuple{2, Float64}, NTuple{3, Float64}}}
 end
+GeoInterface.geomtype(::LineString) = GeoInterface.LineStringTrait()
+GeoInterface.ngeom(::GeoInterface.LineStringTrait, o::LineString) = length(o.coordinates)
+GeoInterface.getgeom(::GeoInterface.LineStringTrait, o::LineString, i) = Point(coordinates=o.coordinates[i])
+
 #-----------------------------------------------------------------------------# LinearRing <: Geometry
 Base.@kwdef mutable struct LinearRing <: Geometry
     @object
@@ -310,9 +323,13 @@ Base.@kwdef mutable struct LinearRing <: Geometry
     @option extrude::Bool
     @option tesselate::Bool
     @altitude_mode_elements
-    @option coordinates::Vector{Tuple}
+    @option coordinates::Vector{Union{NTuple{2, Float64}, NTuple{3, Float64}}}
 end
-#-----------------------------------------------------------------------------# PolyGon <: Geometry
+GeoInterface.geomtype(::LinearRing) = GeoInterface.LinearRingTrait()
+GeoInterface.ngeom(::GeoInterface.LinearRingTrait, o::LinearRing) = length(o.coordinates)
+GeoInterface.getgeom(::GeoInterface.LinearRingTrait, o::LinearRing, i) = Point(coordinates=o.coordinates[i])
+
+#-----------------------------------------------------------------------------# Polygon <: Geometry
 Base.@kwdef mutable struct Polygon <: Geometry
     @object
     @option extrude::Bool
@@ -320,11 +337,20 @@ Base.@kwdef mutable struct Polygon <: Geometry
     @option outerBoundaryIs::LinearRing
     @option innerBoundaryIs::Vector{LinearRing}
 end
+GeoInterface.geomtype(o::Polygon) = GeoInterface.PolygonTrait()
+GeoInterface.ngeom(::GeoInterface.PolygonTrait, o::Polygon) = 1 + length(o.innerBoundaryIs)
+GeoInterface.getgeom(::GeoInterface.PolygonTrait, o::Polygon, i) = i == 1 ? o.outerBoundaryIs : o.innerBoundaryIs[i-1]
+
 #-----------------------------------------------------------------------------# MultiGeometry <: Geometry
 Base.@kwdef mutable struct MultiGeometry <: Geometry
     @object
     @option Geometries::Vector{Geometry}
 end
+GeoInterface.geomtype(geom::MultiGeometry) = GeoInterface.GeometryCollectionTrait()
+GeoInterface.ncoord(::GeoInterface.GeometryCollectionTrait, geom::MultiGeometry) = GeoInterface.ncoord(first(o.Geometries))
+GeoInterface.ngeom(::GeoInterface.GeometryCollectionTrait, geom::MultiGeometry) = length(o.Geometries)
+GeoInterface.getgeom(::GeoInterface.GeometryCollectionTrait, geom::MultiGeometry, i) = o.Geometries[i]
+
 #-----------------------------------------------------------------------------# Model <: Geometry
 Base.@kwdef mutable struct Alias <: NoAttributes
     @option targetHref::String
@@ -342,6 +368,7 @@ Base.@kwdef mutable struct Model <: Geometry
     @option Link::Link
     @option ResourceMap::ResourceMap
 end
+GeoInterface.isgeometry(::Type{Model}) = false
 #-----------------------------------------------------------------------------# gx_Track <: Geometry
 Base.@kwdef mutable struct gx_Track <: Geometry
     @object
@@ -352,6 +379,7 @@ Base.@kwdef mutable struct gx_Track <: Geometry
     @option Model::Model
     @option ExtendedData::ExtendedData
 end
+GeoInterface.isgeometry(::Type{gx_Track}) = false
 #-----------------------------------------------------------------------------# gx_MultiTrack <: Geometry
 Base.@kwdef mutable struct gx_MultiTrack
     @object
