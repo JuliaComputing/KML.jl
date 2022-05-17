@@ -87,7 +87,17 @@ mg = MultiGeometry()
 mg.Geometries = [Point(coordinates=(0,1)), Point(coordinates=(2,3))]
 ```
 
-6. Tags/objects use `_` rather than `:`.  E.g. `gx:altitudeMode` → `gx_altitudeMode`
+6. Enum types are in the `KML.Enums` module:
+
+```julia
+KML.Enums.altitudeMode
+# Enum KML.Enums.altitudeMode:
+# clampToGround = 0
+# relativeToGround = 1
+# absolute = 2
+```
+
+7. Tags/objects use `_` rather than `:`.  E.g. `gx:altitudeMode` → `gx_altitudeMode`
 
 
 <br><br>
