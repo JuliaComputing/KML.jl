@@ -97,7 +97,7 @@ KML.Enums.altitudeMode
 # absolute = 2
 ```
 
-7. Tags/objects use `_` rather than `:`.  E.g. `gx:altitudeMode` → `gx_altitudeMode`
+7. Objects (and their fields) use `_` rather than `:`.  E.g. `gx:altitudeMode` → `gx_altitudeMode`
 
 
 <br><br>
