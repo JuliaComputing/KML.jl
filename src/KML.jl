@@ -4,6 +4,7 @@ using OrderedCollections: OrderedDict
 using GeoInterface: GeoInterface
 using XML
 import XML: Element, showxml
+using InteractiveUtils
 
 #----------------------------------------------------------------------------# utils
 const INDENT = "  "
@@ -43,10 +44,19 @@ end
     gx_altitudeMode::Union{Nothing, Enums.gx_altitudeMode} = nothing
 end
 
+# @option field::Type → field::Union{Nothing, Type} = nothing
 macro option(expr)
     expr.head == :(::) || error("@default only works on type annotations e.g. `field::Type`")
     expr.args[2] = Expr(:curly, :Union, :Nothing, expr.args[2])
     return esc(Expr(:(=), expr, :nothing))
+end
+
+# Same as `@option` but prints a warning.
+macro required(expr)
+    expr.head == :(::) || error("@required only works on type annotations e.g. `field::Type`")
+    expr.args[2] = Expr(:curly, :Union, :Nothing, expr.args[2])
+    warning = "Field :$(expr.args[1]) is required by KML spec but has been initialized as `nothing`."
+    return esc(Expr(:(=), expr, :(@warn($warning))))
 end
 
 
@@ -70,7 +80,18 @@ function showxml(io::IO, o::T; depth=0) where {attr_names, T<:KMLElement{attr_na
     printstyled(io, '>', '\n'; color=:light_cyan)
     element_names = setdiff(fieldnames(T), attr_names)
     for (k, v) in zip(element_names, getfield.(Ref(o), element_names))
-        if v isa KMLElement
+        # Annoyingly, Polygons need special-casing
+        if k == :outerBoundaryIs
+            printstyled(io, INDENT ^ (depth + 1), "<outerBoundaryIs>\n", color=:light_green)
+            showxml(io, v, depth=depth + 2)
+            printstyled(io, '\n', INDENT ^ (depth + 1), "</outerBoundaryIs>\n", color=:light_green)
+        elseif k == :innerBoundaryIs
+            if !isnothing(v)
+                printstyled(io, INDENT ^ (depth + 1), "<innerBoundaryIs>\n", color=:light_green)
+                !isnothing(v) && foreach(x -> (showxml(io, x, depth=depth + 2); println(io)), v)
+                printstyled(io, '\n', INDENT ^ (depth + 1), "</innerBoundaryIs>\n", color=:light_green)
+            end
+        elseif v isa KMLElement
             showxml(io, v; depth = depth + 1)
             println(io)
         elseif v isa Vector{<:KMLElement}
@@ -117,6 +138,10 @@ function showxml(io::IO, o::KMLFile)
     println(io, "</kml>")
 end
 
+Base.write(io::IO, o::KMLFile) = showxml(io, o)
+
+Base.:(==)(a::KMLFile, b::KMLFile) = all(getfield(a,f) == getfield(b,f) for f in fieldnames(KMLFile))
+
 #-----------------------------------------------------------------------------# Object
 abstract type Object <: KMLElement{(:id, :targetId)} end
 
@@ -140,6 +165,8 @@ abstract type SubStyle <: Object end
 abstract type ColorStyle <: SubStyle end
 
 abstract type gx_TourPrimitive <: Object end
+
+Base.:(==)(a::T, b::T) where {T<: Object} = all(getfield(a,f) == getfield(b,f) for f in fieldnames(T))
 
 #-===========================================================================-# Immediate Subtypes of Object
 @def object begin
@@ -194,7 +221,7 @@ end
 #-----------------------------------------------------------------------------# Lod <: Object
 Base.@kwdef mutable struct Lod <: Object
     @object
-    minLodPixels::Int
+    minLodPixels::Int = 128
     @option maxLodPixels::Int
     @option minFadeExtent::Int
     @option maxFadeExtent::Int
@@ -202,19 +229,19 @@ end
 #-----------------------------------------------------------------------------# LatLonBox <: Object
 Base.@kwdef mutable struct LatLonBox <: Object
     @object
-    north::Float64
-    south::Float64
-    east::Float64
-    west::Float64
+    north::Float64 = 0
+    south::Float64 = 0
+    east::Float64 = 0
+    west::Float64 = 0
     @option rotation::Float64
 end
 #-----------------------------------------------------------------------------# LatLonAltBox <: Object
 Base.@kwdef mutable struct LatLonAltBox <: Object
     @object
-    north::Float64
-    south::Float64
-    east::Float64
-    west::Float64
+    north::Float64 = 0
+    south::Float64 = 0
+    east::Float64 = 0
+    west::Float64 = 0
     @option minAltitude::Float64
     @option maxAltitude::Float64
     @altitude_mode_elements
@@ -228,7 +255,7 @@ end
 #-----------------------------------------------------------------------------# gx_LatLonQuad <: Object
 Base.@kwdef mutable struct gx_LatLonQuad <: Object
     @object
-    coordinates::Vector{NTuple{2, Float64}}
+    coordinates::Vector{NTuple{2, Float64}} = [(0,0), (0,0), (0,0), (0,0)]
     gx_LatLonQuad(id, targetId, coordinates) = (@assert length(coordinates) == 4; new(id, targetId, coordinates))
 end
 #-----------------------------------------------------------------------------# gx_Playlist <: Object
@@ -240,14 +267,14 @@ end
 #-===========================================================================-# Things that don't quite conform
 #-----------------------------------------------------------------------------# Snippet
 Base.@kwdef mutable struct Snippet <: KMLElement{(:maxLines,)}
-    content::String
+    content::String = ""
     maxLines::Int = 2
 end
 showxml(io::IO, o::Snippet) = printstyled(io, "<Snippet maxLines=", repr(o.maxLines), '>', o.content, "</Snippet>", color=:light_yellow)
 #-----------------------------------------------------------------------------# ExtendedData
-# TODO: finish
+# TODO: Support ExtendedData.  This currently prints incorrectly.
 Base.@kwdef mutable struct ExtendedData <: NoAttributes
-    children::Vector
+    @required children::Vector{Any}
 end
 
 
@@ -266,9 +293,9 @@ end
     @option description::String
     @option AbstractView::AbstractView
     @option TimePrimitive::TimePrimitive
-    @option styleURL::String
+    @option styleUrl::String
     @option StyleSelector::StyleSelector
-    @option region::Region
+    @option Region::Region
     @option ExtendedData::ExtendedData
 end
 #-----------------------------------------------------------------------------# gx_Tour <: Feature
@@ -307,10 +334,10 @@ Base.@kwdef mutable struct LineString <: Geometry
     @object
     @option gx_altitudeOffset::Float64
     @option extrude::Bool
-    @option tesselate::Bool
+    @option tessellate::Bool
     @altitude_mode_elements
     @option gx_drawOrder::Int
-    @option coordinates::Vector{Union{NTuple{2, Float64}, NTuple{3, Float64}}}
+    @option coordinates::Union{Vector{NTuple{2, Float64}}, Vector{NTuple{3, Float64}}}
 end
 GeoInterface.geomtype(::LineString) = GeoInterface.LineStringTrait()
 GeoInterface.ngeom(::GeoInterface.LineStringTrait, o::LineString) = length(o.coordinates)
@@ -321,9 +348,9 @@ Base.@kwdef mutable struct LinearRing <: Geometry
     @object
     @option gx_altitudeOffset::Float64
     @option extrude::Bool
-    @option tesselate::Bool
+    @option tessellate::Bool
     @altitude_mode_elements
-    @option coordinates::Vector{Union{NTuple{2, Float64}, NTuple{3, Float64}}}
+    @option coordinates::Union{Vector{NTuple{2, Float64}}, Vector{NTuple{3, Float64}}}
 end
 GeoInterface.geomtype(::LinearRing) = GeoInterface.LinearRingTrait()
 GeoInterface.ngeom(::GeoInterface.LinearRingTrait, o::LinearRing) = length(o.coordinates)
@@ -333,8 +360,8 @@ GeoInterface.getgeom(::GeoInterface.LinearRingTrait, o::LinearRing, i) = Point(c
 Base.@kwdef mutable struct Polygon <: Geometry
     @object
     @option extrude::Bool
-    @option tesselate::Bool
-    @option outerBoundaryIs::LinearRing
+    @option tessellate::Bool
+    outerBoundaryIs::LinearRing = LinearRing()
     @option innerBoundaryIs::Vector{LinearRing}
 end
 GeoInterface.geomtype(o::Polygon) = GeoInterface.PolygonTrait()
@@ -557,7 +584,7 @@ end
 Base.@kwdef mutable struct Pair <: Object
     @object
     @option key::Enums.styleState
-    @option styleURL::String
+    @option styleUrl::String
     @option Style::Style
 end
 
@@ -613,5 +640,8 @@ Base.@kwdef mutable struct gx_Wait
     @object
     @option gx_duration::Float64
 end
+
+#-----------------------------------------------------------------------------# parsing
+include("parsing.jl")
 
 end #module
