@@ -62,7 +62,7 @@ This package is designed to be used intuitively alongside [Google's KML Referenc
 2. Keywords are the associated attributes as well as child elements of the `Object`
     - E.g. `pt = Point(id="mypoint", coordinates=(0,1))` sets the `id` attribute and `coordinates` child element.
 3. Every keyword has a default value (most often `nothing`).  They can be set after construction.
-    - E.g. `pt.coordinates = (2.3)`
+    - E.g. `pt.coordinates = (2, 3)`
 4. If a child element is itself an `Object`, the keyword matches the type name.
     - E.g. `pl = Placemark(); pl.Geometry = Point()`.  Here, a `Placemark` can hold any `Geometry`, which is an abstract type.  A `Point` is a subtype of `Geometry`.
 5. Some `Object`s can hold several children of the same type.  Fields with plural names expect a `Vector`.
