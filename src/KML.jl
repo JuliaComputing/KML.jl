@@ -125,7 +125,7 @@ macro kml_enum(T, vals...)
         struct $T <: AbstractKMLEnum
             value::String
             function $T(value)
-                value ∈ $(string.(vals)) || error($(string(T)) * " ∉ " * join($vals, ", "))
+                string(value) ∈ $(string.(vals)) || error($(string(T)) * " ∉ " * join($vals, ", "))
                 new(string(value))
             end
         end
