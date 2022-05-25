@@ -10,6 +10,8 @@ package.
 
 ## Quickstart
 
+### Writing
+
 ```julia
 file = KMLFile(
     Document(
@@ -36,6 +38,15 @@ file = KMLFile(
     </Placemark>
   </Document>
 </kml>
+```
+
+
+### Reading
+
+```julia
+path = download("https://developers.google.com/kml/documentation/KML_Samples.kml")
+
+file = KMLFile(path)
 ```
 
 
@@ -131,3 +142,10 @@ ExtendedData       :: Union{Nothing, KML.ExtendedData}
 Schemas            :: Union{Nothing, Vector{KML.Schema}}
 Features           :: Union{Nothing, Vector{KML.Feature}} # Vector of any Type <: Feature
 ```
+
+
+<br>
+<br>
+
+
+## API

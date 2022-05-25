@@ -9,28 +9,6 @@ using InteractiveUtils
 #----------------------------------------------------------------------------# utils
 const INDENT = "  "
 
-module Enums
-@enum altitudeMode clampToGround relativeToGround absolute
-@enum gx_altitudeMode relativeToSeaFloor clampToSeaFloor
-@enum refreshMode onChange onInterval onExpire
-@enum viewRefreshMode never onStop onRequest onRegion
-@enum shape rectangle cylinder sphere
-@enum gridOrigin lowerLeft upperLeft
-@enum displayMode default hide
-@enum listItemType check checkOffOnly checkHideChildren radioFolder
-@enum units fraction pixels insetPixels
-@enum styleState open closed error fetching0 fetching1 fetching2
-@enum colorMode normal random
-@enum flyToMode smooth bounce
-end
-
-
-xml_string(x::Bool) = x ? "1" : "0"
-xml_string(x::Union{Vector, Tuple}) = join(x, ",")
-xml_string(x::Vector{<:Union{Vector, Tuple}}) = join(xml_string.(x), '\n')
-xml_string(x) = string(x)
-
-
 macro def(name, definition)
     return quote
         macro $(esc(name))()
@@ -59,6 +37,8 @@ macro required(expr)
     return esc(Expr(:(=), expr, :(@warn($warning))))
 end
 
+name(T::Type) = replace(string(T), r"([a-zA-Z]*\.)" => "")
+name(o) = name(typeof(o))
 
 #-----------------------------------------------------------------------------# KMLElement
 # `attr_names` fields print as attributes, everything else as an element
@@ -118,6 +98,54 @@ function showxml(io::IO, o::T; depth=0) where {attr_names, T<:KMLElement{attr_na
     printstyled(io, INDENT ^ depth, "</", tag, '>'; color=:light_cyan)
 end
 
+xml_string(x::Bool) = x ? "1" : "0"
+xml_string(x::Union{Vector, Tuple}) = join(x, ",")
+xml_string(x::Vector{<:Union{Vector, Tuple}}) = join(xml_string.(x), '\n')
+xml_string(x) = string(x)
+
+
+
+#-----------------------------------------------------------------------------# "Enums"
+module Enums
+import ..showxml
+import ..name
+
+abstract type AbstractKMLEnum end
+function showxml(io::IO, o::AbstractKMLEnum)
+    tag = name(o)
+    printstyled(io, '<', tag, '>'; color=:light_cyan)
+    printstyled(io, o.value; color=:light_black)
+    printstyled(io, "</", tag, '>'; color=:light_cyan)
+end
+Base.show(io::IO, o::AbstractKMLEnum) = showxml(io, o)
+Base.convert(::Type{T}, s::String) where {T<:AbstractKMLEnum} = T(s)
+
+macro kml_enum(T, vals...)
+    esc(quote
+        struct $T <: AbstractKMLEnum
+            value::String
+            function $T(value)
+                value ∈ $(string.(vals)) || error($(string(T)) * " ∉ " * join($vals, ", "))
+                new(value)
+            end
+        end
+    end)
+end
+@kml_enum altitudeMode clampToGround relativeToGround absolute
+@kml_enum gx_altitudeMode relativeToSeaFloor clampToSeaFloor
+@kml_enum refreshMode onChange onInterval onExpire
+@kml_enum viewRefreshMode never onStop onRequest onRegion
+@kml_enum shape rectangle cylinder sphere
+@kml_enum gridOrigin lowerLeft upperLeft
+@kml_enum displayMode default hide
+@kml_enum listItemType check checkOffOnly checkHideChildren radioFolder
+@kml_enum units fraction pixels insetPixels
+@kml_enum itemIconState open closed error fetching0 fetching1 fetching2
+@kml_enum styleState normal highlight
+@kml_enum colorMode normal random
+@kml_enum flyToMode smooth bounce
+end
+
 #-----------------------------------------------------------------------------# KMLFile
 mutable struct KMLFile
     kml_children::Vector{KMLElement}
@@ -173,6 +201,7 @@ Base.:(==)(a::T, b::T) where {T<: Object} = all(getfield(a,f) == getfield(b,f) f
     @option id::String
     @option targetId::String
 end
+
 #-----------------------------------------------------------------------------# Link <: Object
 Base.@kwdef mutable struct Link <: Object
     @object
@@ -361,6 +390,7 @@ Base.@kwdef mutable struct Polygon <: Geometry
     @object
     @option extrude::Bool
     @option tessellate::Bool
+    @altitude_mode_elements
     outerBoundaryIs::LinearRing = LinearRing()
     @option innerBoundaryIs::Vector{LinearRing}
 end
@@ -448,30 +478,36 @@ Base.@kwdef mutable struct PhotoOverlay <: Overlay
 end
 #-----------------------------------------------------------------------------# ScreenOverlay <: Overlay
 Base.@kwdef mutable struct overlayXY <: KMLElement{(:x, :y, :xunits, :yunits)}
-    @option x::Float64
-    @option y::Float64
-    @option xunits::Enums.units
-    @option yunits::Enums.units
+    x::Float64 = 0.5
+    y::Float64 = 0.5
+    xunits::Enums.units = "fraction"
+    yunits::Enums.units = "fraction"
 end
 Base.@kwdef mutable struct screenXY <: KMLElement{(:x, :y, :xunits, :yunits)}
-    @option x::Float64
-    @option y::Float64
-    @option xunits::Enums.units
-    @option yunits::Enums.units
+    x::Float64 = 0.5
+    y::Float64 = 0.5
+    xunits::Enums.units = "fraction"
+    yunits::Enums.units = "fraction"
 end
 Base.@kwdef mutable struct rotationXY <: KMLElement{(:x, :y, :xunits, :yunits)}
-    @option x::Float64
-    @option y::Float64
-    @option xunits::Enums.units
-    @option yunits::Enums.units
+    x::Float64 = 0.5
+    y::Float64 = 0.5
+    xunits::Enums.units = "fraction"
+    yunits::Enums.units = "fraction"
+end
+Base.@kwdef mutable struct size <: KMLElement{(:x, :y, :xunits, :yunits)}
+    x::Float64 = 0.5
+    y::Float64 = 0.5
+    xunits::Enums.units = "fraction"
+    yunits::Enums.units = "fraction"
 end
 Base.@kwdef mutable struct ScreenOverlay <: Overlay
     @overlay
-    @option overlayXY::overlayXY
-    @option screenXY::screenXY
-    @option rotationXY::rotationXY
-    @option size::String
-    @option rotation::Float64
+    overlayXY::overlayXY = overlayXY()
+    screenXY::screenXY = screenXY()
+    rotationXY::rotationXY = rotationXY()
+    size::size = size()
+    rotation::Float64 = 0.0
 end
 #-----------------------------------------------------------------------------# GroundOverlay <: Overlay
 Base.@kwdef mutable struct GroundOverlay <: Overlay
@@ -516,7 +552,7 @@ Base.@kwdef mutable struct BalloonStyle <: SubStyle
     @option displayMode::Enums.displayMode
 end
 #-----------------------------------------------------------------------------# ListStyle <: SubStyle
-Base.@kwdef mutable struct ItemIcon <: Object # lie
+Base.@kwdef mutable struct ItemIcon <: KMLElement{()}
     @option state::Enums.styleState
     @option href::String
 end
@@ -536,7 +572,7 @@ end
 #-----------------------------------------------------------------------------# LineStyle <: ColorStyle
 Base.@kwdef mutable struct LineStyle <: ColorStyle
     @colorstyle
-    @option width::Int
+    @option width::Float64
     @option gx_outerColor::String
     @option gx_outerWidth::Float64
     @option gx_physicalWidth::Float64
@@ -640,8 +676,54 @@ Base.@kwdef mutable struct gx_Wait
     @object
     @option gx_duration::Float64
 end
+#-===========================================================================-# AbstractView
+Base.@kwdef mutable struct gx_option
+    name::String
+    enabled::Bool
+end
+
+Base.@kwdef mutable struct gx_ViewerOptions
+    options::Vector{gx_option}
+end
+
+#-----------------------------------------------------------------------------# Camera
+Base.@kwdef mutable struct Camera <: AbstractView
+    @object
+    @option TimePrimitive::TimePrimitive
+    @option gx_ViewerOptions::gx_ViewerOptions
+    @option longitude::Float64
+    @option latitude::Float64
+    @option altitude::Float64
+    @option heading::Float64
+    @option tilt::Float64
+    @option roll::Float64
+    @altitude_mode_elements
+end
+
+Base.@kwdef mutable struct LookAt <: AbstractView
+    @object
+    @option TimePrimitive::TimePrimitive
+    @option gx_ViewerOptions::gx_ViewerOptions
+    @option longitude::Float64
+    @option latitude::Float64
+    @option altitude::Float64
+    @option heading::Float64
+    @option tilt::Float64
+    @option range::Float64
+    @altitude_mode_elements
+end
 
 #-----------------------------------------------------------------------------# parsing
 include("parsing.jl")
+
+#-----------------------------------------------------------------------------# exports
+export KMLFile, Enums, object
+
+for T in vcat(all_concrete_subtypes(KMLElement), all_abstract_subtypes(Object))
+    if T != KML.Pair
+        e = Symbol(replace(string(T), "KML." => ""))
+        @eval export $e
+    end
+end
 
 end #module
