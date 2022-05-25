@@ -59,56 +59,23 @@ file = KMLFile(path)
 This package is designed to be used intuitively alongside [Google's KML Reference Page](https://developers.google.com/kml/documentation/kmlreference).  Thus, there are rules that guide the mapping between KML (XML) Objects and Julia structs.
 
 1. In Julia, each `Object` is constructed with keyword arguments only.
-2. These keyword arguments are the child elements of the `Object`.
+2. Keywords are the associated attributes as well as child elements of the `Object`
+  - E.g. `pt = Point(id="mypoint", coordinates=(0,1)) sets the `id` attribute and `coordinates` child element.
+3. Every keyword has a default value (most often `nothing`).  They can be set after construction.
+  - E.g. `pt.coordinates = (2.3)`
+4. If a child element is itself an `Object`, the keyword matches the type name.
+  - E.g. `pl = Placemark(); pl.Geometry = Point()`.  Here, a `Placemark` can hold any `Geometry`, which is an abstract type.  A `Point` is a subtype of `Geometry`.
+5. Some `Object`s can hold several children of the same type.  Fields with plural names expect a `Vector`.
+  - E.g. `mg = MultiGeometry(); mg.Geometries = [Point(), Polygon()]
+6. Enum types are in the `KML.Enums` module.  However, you shouldn't need to create them directly as conversion is handled for you/helpful error messages are provided.
 
 ```julia
-Point(; coordinates=(0,1))
-# <Point>
-#   <coordinates>0,1</coordinates>
-# </Point>
+julia> pt.altitudeMode = "clamptoground"
+ERROR: altitudeMode ∉ clampToGround, relativeToGround, absolute
 ```
 
-3. Arguments are `nothing` by default. They can be set after construction.
-
-```julia
-pt = Point()
-# <Point />
-
-pt.coordinates = (2,3)
-pt
-# <Point>
-#   <coordinates>2,3</coordinates>
-# </Point>
-```
-
-4. Some child elements are also `Object`s.  The argument matches the type name.
-
-```julia
-pl = PlaceMark()
-
-# A Placemark accepts any `Geometry`, which is an abstract type (Point <: Geometry)
-pl.Geometry = Point(coordinates=(4, 5))
-```
-
-5. Some `Object`s can have several children of the same type.  Fields with plural names expect a `Vector`.
-
-```julia
-mg = MultiGeometry()
-
-mg.Geometries = [Point(coordinates=(0,1)), Point(coordinates=(2,3))]
-```
-
-6. Enum types are in the `KML.Enums` module:
-
-```julia
-KML.Enums.altitudeMode
-# Enum KML.Enums.altitudeMode:
-# clampToGround = 0
-# relativeToGround = 1
-# absolute = 2
-```
-
-7. Objects (and their fields) use `_` rather than `:`.  E.g. `gx:altitudeMode` → `gx_altitudeMode`
+7. Google extensions (things with `gx:` in the name) replace `:` with `_`.
+  - E.g. `gx:altitudeMode` → `gx_altitudeMode`
 
 
 <br><br>
@@ -139,13 +106,10 @@ styleURL           :: Union{Nothing, String}
 StyleSelector      :: Union{Nothing, KML.StyleSelector}   # Style or StyleMap
 region             :: Union{Nothing, KML.Region}
 ExtendedData       :: Union{Nothing, KML.ExtendedData}
-Schemas            :: Union{Nothing, Vector{KML.Schema}}
-Features           :: Union{Nothing, Vector{KML.Feature}} # Vector of any Type <: Feature
+Schemas            :: Union{Nothing, Vector{KML.Schema}}  # Multiple Schemas allowed
+Features           :: Union{Nothing, Vector{KML.Feature}} # Multiple Features (abstract type) allowed
 ```
 
 
 <br>
 <br>
-
-
-## API
