@@ -126,7 +126,7 @@ macro kml_enum(T, vals...)
             value::String
             function $T(value)
                 value ∈ $(string.(vals)) || error($(string(T)) * " ∉ " * join($vals, ", "))
-                new(value)
+                new(string(value))
             end
         end
     end)
