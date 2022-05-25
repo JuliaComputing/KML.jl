@@ -21,6 +21,8 @@ end
         ]
     )
     @test GeoInterface.testgeometry(p)
+
+    @test GeoInterface.testfeature(Placemark(Geometry=p))
 end
 
 @testset "KMLFile" begin

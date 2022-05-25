@@ -174,9 +174,6 @@ Base.:(==)(a::KMLFile, b::KMLFile) = all(getfield(a,f) == getfield(b,f) for f in
 abstract type Object <: KMLElement{(:id, :targetId)} end
 
 abstract type Feature <: Object end
-# GeoInterface.isfeature(::Type{Feature}) = true
-# GeoInterface.properties(::Type{T}) where {T<:Feature} = setdiff(fieldnames(T), (:Geometry, :Geometries))
-# GeoInterface.geometry(o::Feature) = o.Geometry
 abstract type Overlay <: Feature end
 abstract type Container <: Feature end
 
@@ -344,6 +341,9 @@ Base.@kwdef mutable struct Placemark <: Feature
     @feature
     @option Geometry::Geometry
 end
+GeoInterface.isfeature(o::Placemark) = true
+GeoInterface.properties(o::Placemark) = NamedTuple(Dict(f => getfield(o,f) for f in setdiff(fieldnames(Placemark), [:Geometry])))
+GeoInterface.geometry(o::Placemark) = o.Geometry
 
 
 #-===========================================================================-# Geometries
@@ -354,7 +354,7 @@ Base.@kwdef mutable struct Point <: Geometry
     @altitude_mode_elements
     @option coordinates::Union{NTuple{2, Float64}, NTuple{3, Float64}}
 end
-GeoInterface.geomtype(o::Point) = GeoInterface.PointTrait()
+GeoInterface.geomtrait(o::Point) = GeoInterface.PointTrait()
 GeoInterface.ncoord(::GeoInterface.PointTrait, o::Point) = length(o.coordinates)
 GeoInterface.getcoord(::GeoInterface.PointTrait, o::Point, i) = o.coordinates[i]
 
@@ -368,7 +368,7 @@ Base.@kwdef mutable struct LineString <: Geometry
     @option gx_drawOrder::Int
     @option coordinates::Union{Vector{NTuple{2, Float64}}, Vector{NTuple{3, Float64}}}
 end
-GeoInterface.geomtype(::LineString) = GeoInterface.LineStringTrait()
+GeoInterface.geomtrait(::LineString) = GeoInterface.LineStringTrait()
 GeoInterface.ngeom(::GeoInterface.LineStringTrait, o::LineString) = length(o.coordinates)
 GeoInterface.getgeom(::GeoInterface.LineStringTrait, o::LineString, i) = Point(coordinates=o.coordinates[i])
 
@@ -381,7 +381,7 @@ Base.@kwdef mutable struct LinearRing <: Geometry
     @altitude_mode_elements
     @option coordinates::Union{Vector{NTuple{2, Float64}}, Vector{NTuple{3, Float64}}}
 end
-GeoInterface.geomtype(::LinearRing) = GeoInterface.LinearRingTrait()
+GeoInterface.geomtrait(::LinearRing) = GeoInterface.LinearRingTrait()
 GeoInterface.ngeom(::GeoInterface.LinearRingTrait, o::LinearRing) = length(o.coordinates)
 GeoInterface.getgeom(::GeoInterface.LinearRingTrait, o::LinearRing, i) = Point(coordinates=o.coordinates[i])
 
@@ -394,7 +394,7 @@ Base.@kwdef mutable struct Polygon <: Geometry
     outerBoundaryIs::LinearRing = LinearRing()
     @option innerBoundaryIs::Vector{LinearRing}
 end
-GeoInterface.geomtype(o::Polygon) = GeoInterface.PolygonTrait()
+GeoInterface.geomtrait(o::Polygon) = GeoInterface.PolygonTrait()
 GeoInterface.ngeom(::GeoInterface.PolygonTrait, o::Polygon) = 1 + length(o.innerBoundaryIs)
 GeoInterface.getgeom(::GeoInterface.PolygonTrait, o::Polygon, i) = i == 1 ? o.outerBoundaryIs : o.innerBoundaryIs[i-1]
 
@@ -403,7 +403,7 @@ Base.@kwdef mutable struct MultiGeometry <: Geometry
     @object
     @option Geometries::Vector{Geometry}
 end
-GeoInterface.geomtype(geom::MultiGeometry) = GeoInterface.GeometryCollectionTrait()
+GeoInterface.geomtrait(geom::MultiGeometry) = GeoInterface.GeometryCollectionTrait()
 GeoInterface.ncoord(::GeoInterface.GeometryCollectionTrait, geom::MultiGeometry) = GeoInterface.ncoord(first(o.Geometries))
 GeoInterface.ngeom(::GeoInterface.GeometryCollectionTrait, geom::MultiGeometry) = length(o.Geometries)
 GeoInterface.getgeom(::GeoInterface.GeometryCollectionTrait, geom::MultiGeometry, i) = o.Geometries[i]
