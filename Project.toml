@@ -13,6 +13,7 @@ XML = "72c71f33-b9b6-44de-8c94-c961784809e2"
 [compat]
 GeoInterface = "1"
 OrderedCollections = "1"
+Parsers = "2"
 XML = "0.1.1"
 julia = "1"
 
