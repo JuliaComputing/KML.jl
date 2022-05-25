@@ -60,7 +60,7 @@ This package is designed to be used intuitively alongside [Google's KML Referenc
 
 1. In Julia, each `Object` is constructed with keyword arguments only.
 2. Keywords are the associated attributes as well as child elements of the `Object`
-    - E.g. `pt = Point(id="mypoint", coordinates=(0,1)) sets the `id` attribute and `coordinates` child element.
+    - E.g. `pt = Point(id="mypoint", coordinates=(0,1))` sets the `id` attribute and `coordinates` child element.
 3. Every keyword has a default value (most often `nothing`).  They can be set after construction.
     - E.g. `pt.coordinates = (2.3)`
 4. If a child element is itself an `Object`, the keyword matches the type name.
