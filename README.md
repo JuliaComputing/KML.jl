@@ -66,7 +66,7 @@ This package is designed to be used intuitively alongside [Google's KML Referenc
 4. If a child element is itself an `Object`, the keyword matches the type name.
     - E.g. `pl = Placemark(); pl.Geometry = Point()`.  Here, a `Placemark` can hold any `Geometry`, which is an abstract type.  A `Point` is a subtype of `Geometry`.
 5. Some `Object`s can hold several children of the same type.  Fields with plural names expect a `Vector`.
-    - E.g. `mg = MultiGeometry(); mg.Geometries = [Point(), Polygon()]
+    - E.g. `mg = MultiGeometry(); mg.Geometries = [Point(), Polygon()]`
 6. Enum types are in the `KML.Enums` module.  However, you shouldn't need to create them directly as conversion is handled for you/helpful error messages are provided.
 
 ```julia
