@@ -341,7 +341,8 @@ Base.@kwdef mutable struct Placemark <: Feature
     @feature
     @option Geometry::Geometry
 end
-GeoInterface.isfeature(o::Placemark) = true
+GeoInterface.isfeature(o::Type{Placemark}) = true
+GeoInterface.trait(o::Placemark) = GeoInterface.FeatureTrait()
 GeoInterface.properties(o::Placemark) = NamedTuple(Dict(f => getfield(o,f) for f in setdiff(fieldnames(Placemark), [:Geometry])))
 GeoInterface.geometry(o::Placemark) = o.Geometry
 
