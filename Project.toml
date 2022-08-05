@@ -1,7 +1,7 @@
 name = "KML"
 uuid = "1284bf3a-1e3d-4f4e-a7a9-b9d235a28f35"
 authors = ["Josh Day <emailjoshday@gmail.com> and contributors"]
-version = "0.1.0"
+version = "0.1.1"
 
 [deps]
 GeoInterface = "cf35fbd7-0cd7-5166-be24-54bfbe79505f"
