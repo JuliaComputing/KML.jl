@@ -2,9 +2,8 @@ module KML
 
 using OrderedCollections: OrderedDict
 using GeoInterface: GeoInterface
-using XML
-import XML: Element, showxml
-using InteractiveUtils
+import XML: XML, Node
+using InteractiveUtils: subtypes
 
 #----------------------------------------------------------------------------# utils
 const INDENT = "  "
@@ -40,92 +39,76 @@ end
 name(T::Type) = replace(string(T), r"([a-zA-Z]*\.)" => "")
 name(o) = name(typeof(o))
 
+function all_concrete_subtypes(T)
+    types = subtypes(T)
+    out = filter(isconcretetype, types)
+    for S in filter(isabstracttype, types)
+        append!(out, all_concrete_subtypes(S))
+    end
+    return out
+end
+
+function all_abstract_subtypes(T)
+    types = filter(isabstracttype, subtypes(T))
+    for t in types
+        append!(types, all_abstract_subtypes(t))
+    end
+    types
+end
+
 #-----------------------------------------------------------------------------# KMLElement
 # `attr_names` fields print as attributes, everything else as an element
-abstract type KMLElement{attr_names} end
+abstract type KMLElement{attr_names} <: XML.AbstractXMLNode end
 
 const NoAttributes = KMLElement{()}
 
-Base.show(io::IO, o::KMLElement) = showxml(io, o)
+function Base.show(io::IO, o::T) where {names, T <: KMLElement{names}}
+    printstyled(io, T; color=:light_cyan)
 
-# :light_cyan => KMLElement
-# :light_green => field name
-# :light_black => field value
-function showxml(io::IO, o::T; depth=0) where {attr_names, T<:KMLElement{attr_names}}
-    tag = replace(string(T), "KML." => "", "_" => ":")
-    printstyled(io, INDENT ^ depth, '<', tag; color=:light_cyan)
-    for (k, v) in zip(attr_names, getfield.(Ref(o), attr_names))
-        !isnothing(v) && printstyled(io, ' ', k, '=', '"', v, '"'; color=:light_cyan)
+    attrs = XML.attributes(o)
+    if !isempty(attrs)
+        print(io, '(', join(["$k=$(repr(v))" for (k,v) in attrs], ", ")..., ')')
     end
-    printstyled(io, '>', '\n'; color=:light_cyan)
-    element_names = setdiff(fieldnames(T), attr_names)
-    for (k, v) in zip(element_names, getfield.(Ref(o), element_names))
-        # Annoyingly, Polygons need special-casing
-        if k == :outerBoundaryIs
-            printstyled(io, INDENT ^ (depth + 1), "<outerBoundaryIs>\n", color=:light_green)
-            showxml(io, v, depth=depth + 2)
-            printstyled(io, '\n', INDENT ^ (depth + 1), "</outerBoundaryIs>\n", color=:light_green)
-        elseif k == :innerBoundaryIs
-            if !isnothing(v)
-                printstyled(io, INDENT ^ (depth + 1), "<innerBoundaryIs>\n", color=:light_green)
-                !isnothing(v) && foreach(x -> (showxml(io, x, depth=depth + 2); println(io)), v)
-                printstyled(io, '\n', INDENT ^ (depth + 1), "</innerBoundaryIs>\n", color=:light_green)
-            end
-        elseif v isa KMLElement
-            showxml(io, v; depth = depth + 1)
-            println(io)
-        elseif v isa Vector{<:KMLElement}
-            map(v) do child
-                showxml(io, child; depth=depth+1)
-                println(io)
-            end
-        else
-            if !isnothing(v)
-                s = xml_string(v)
-                printstyled(io, INDENT^(depth+1), '<', k, '>'; color=:light_green)
-                if occursin('\n', s)
-                    prefix = '\n' * INDENT^(depth + 2)
-                    printstyled(io, prefix, replace(s, '\n' => prefix), '\n'; color=:light_black)
-                    printstyled(io, INDENT^(depth + 1), "</", k, '>'; color=:light_green)
-                else
-                    printstyled(io, s; color=:light_black)
-                    printstyled(io, "</", k, '>'; color=:light_green)
-                end
-                println(io)
-            end
-        end
+    n_children = sum(!isnothing(getfield(o, field)) for field in setdiff(fieldnames(T), names); init=0)
+    if n_children > 0
+        printstyled(io, " (", n_children, " children" ,')'; color=:light_black)
     end
-    printstyled(io, INDENT ^ depth, "</", tag, '>'; color=:light_cyan)
 end
 
-xml_string(x::Bool) = x ? "1" : "0"
-xml_string(x::Union{Vector, Tuple}) = join(x, ",")
-xml_string(x::Vector{<:Union{Vector, Tuple}}) = join(xml_string.(x), '\n')
-xml_string(x) = string(x)
+# XML Interface
+XML.tag(o::KMLElement) = name(o)
 
+function XML.attributes(o::T) where {names, T <: KMLElement{names}}
+    Dict(k => getfield(o, k) for k in names if !isnothing(getfield(o, k)))
+end
+
+XML.children(o::KMLElement) = XML.children(Node(o))
+
+typemap(o) = typemap(typeof(o))
+function typemap(::Type{T}) where {T<:KMLElement}
+    Dict(name => Base.nonnothingtype(S) for (name, S) in zip(fieldnames(T), fieldtypes(T)))
+end
+
+Base.:(==)(a::T, b::T) where {T<:KMLElement} = all(getfield(a,f) == getfield(b,f) for f in fieldnames(T))
 
 
 #-----------------------------------------------------------------------------# "Enums"
 module Enums
-import ..showxml
-import ..name
+import ..NoAttributes, ..name
+using XML
 
-abstract type AbstractKMLEnum end
-function showxml(io::IO, o::AbstractKMLEnum)
-    tag = name(o)
-    printstyled(io, '<', tag, '>'; color=:light_cyan)
-    printstyled(io, o.value; color=:light_black)
-    printstyled(io, "</", tag, '>'; color=:light_cyan)
-end
-Base.show(io::IO, o::AbstractKMLEnum) = showxml(io, o)
-Base.convert(::Type{T}, s::String) where {T<:AbstractKMLEnum} = T(s)
+abstract type AbstractKMLEnum <: NoAttributes end
+
+Base.show(io::IO, o::AbstractKMLEnum) = print(io, typeof(o), ": ", repr(o.value))
+Base.convert(::Type{T}, x::String) where {T<:AbstractKMLEnum} = T(x)
+Base.string(o::AbstractKMLEnum) = o.value
 
 macro kml_enum(T, vals...)
     esc(quote
         struct $T <: AbstractKMLEnum
             value::String
             function $T(value)
-                string(value) ∈ $(string.(vals)) || error($(string(T)) * " ∉ " * join($vals, ", "))
+                string(value) ∈ $(string.(vals)) || error($(string(T)) * " ∉ " * join($vals, ", ") * ". Found: " * string(value))
                 new(string(value))
             end
         end
@@ -148,27 +131,47 @@ end
 
 #-----------------------------------------------------------------------------# KMLFile
 mutable struct KMLFile
-    kml_children::Vector{KMLElement}
+    children::Vector{Union{Node, KMLElement}}  # Union with XML.Node to allow Comment and CData
 end
 KMLFile(content::KMLElement...) = KMLFile(collect(content))
 
-Base.push!(o::KMLFile, el::KMLElement) = push!(o.kml_children, el)
+Base.push!(o::KMLFile, el::Union{Node, KMLElement}) = push!(o.children, el)
 
-Base.show(io::IO, o::KMLFile) = showxml(io, o)
-
-function showxml(io::IO, o::KMLFile)
-    println(io, """<?xml version="1.0" encoding="UTF-8"?>""")
-    println(io, """<kml xmlns="http://earth.google.com/kml/2.2">""")
-    foreach(o.kml_children) do child
-        showxml(io, child; depth=1)
-        println(io)
+# TODO: print better summary of file
+function Base.show(io::IO, o::KMLFile)
+    print(io, "KMLFile (")
+    n = length(XML.children(o))
+    if n == 1
+        print(io, "1 child")
+    else
+        print(io, n, " children")
     end
-    println(io, "</kml>")
+    println(io, " inside <kml>)")
 end
 
-Base.write(io::IO, o::KMLFile) = showxml(io, o)
+function Node(o::KMLFile)
+    Node(XML.Document, nothing, nothing, nothing, [
+        Node(XML.Declaration, Dict("version" => "1.0", "encoding" => "UTF-8")),
+        Node(XML.Element, "kml", Dict("xmlns" => "http://earth.google.com/kml/2.2"),
+        Node.(o.children)...)
+    ])
+end
+
 
 Base.:(==)(a::KMLFile, b::KMLFile) = all(getfield(a,f) == getfield(b,f) for f in fieldnames(KMLFile))
+
+# read/write
+Base.read(io::IO, ::Type{KMLFile}) = KMLFile(read(io, XML.Node))
+Base.read(filename::AbstractString, ::Type{KMLFile}) = KMLFile(read(filename, XML.Node))
+function KMLFile(doc::XML.Node)
+    i = findfirst(x -> x.tag == "kml", XML.children(doc))
+    isnothing(i) && error("No <kml> tag found in file.")
+    KMLFile(map(object, XML.children(doc[i])))
+end
+
+XML.write(io::IO, o::KMLFile) = XML.write(io, Node(o))
+XML.write(file::AbstractString, o::KMLFile) = XML.write(file, Node(o))
+XML.write(o::KMLFile) = XML.write(Node(o))
 
 #-----------------------------------------------------------------------------# Object
 abstract type Object <: KMLElement{(:id, :targetId)} end
@@ -191,7 +194,6 @@ abstract type ColorStyle <: SubStyle end
 
 abstract type gx_TourPrimitive <: Object end
 
-Base.:(==)(a::T, b::T) where {T<: Object} = all(getfield(a,f) == getfield(b,f) for f in fieldnames(T))
 
 #-===========================================================================-# Immediate Subtypes of Object
 @def object begin
@@ -320,7 +322,7 @@ end
     @option AbstractView::AbstractView
     @option TimePrimitive::TimePrimitive
     @option styleUrl::String
-    @option StyleSelector::StyleSelector
+    @option StyleSelectors::Vector{StyleSelector}
     @option Region::Region
     @option ExtendedData::ExtendedData
 end
@@ -520,28 +522,6 @@ Base.@kwdef mutable struct GroundOverlay <: Overlay
 end
 
 
-#-===========================================================================-# Containers
-#-----------------------------------------------------------------------------# Folder <: Container
-Base.@kwdef mutable struct Folder <: Container
-    @feature
-    @option Features::Vector{Feature}
-end
-#-----------------------------------------------------------------------------# Document <: Container
-Base.@kwdef mutable struct SimpleField <: KMLElement{(:type, :name)}
-    type::String
-    name::String
-    @option displayName::String
-end
-Base.@kwdef mutable struct Schema <: KMLElement{(:id,)}
-    id::String
-    @option SimpleFields::Vector{SimpleField}
-end
-Base.@kwdef mutable struct Document <: Container
-    @feature
-    @option Schemas::Vector{Schema}
-    @option Features::Vector{Feature}
-end
-
 
 #-===========================================================================-# SubStyles
 #-----------------------------------------------------------------------------# BalloonStyle <: SubStyle
@@ -607,6 +587,7 @@ end
 
 
 #-===========================================================================-# StyleSelectors
+# These need to come before Containers since `Document` holds `Style`s
 #-----------------------------------------------------------------------------# Style <: StyleSelector
 Base.@kwdef mutable struct Style <: StyleSelector
     @object
@@ -629,6 +610,31 @@ Base.@kwdef mutable struct StyleMap <: StyleSelector
     @object
     @option Pairs::Vector{Pair}
 end
+
+
+#-===========================================================================-# Containers
+#-----------------------------------------------------------------------------# Folder <: Container
+Base.@kwdef mutable struct Folder <: Container
+    @feature
+    @option Features::Vector{Feature}
+end
+#-----------------------------------------------------------------------------# Document <: Container
+Base.@kwdef mutable struct SimpleField <: KMLElement{(:type, :name)}
+    type::String
+    name::String
+    @option displayName::String
+end
+Base.@kwdef mutable struct Schema <: KMLElement{(:id,)}
+    id::String
+    @option SimpleFields::Vector{SimpleField}
+end
+Base.@kwdef mutable struct Document <: Container
+    @feature
+    @option Schemas::Vector{Schema}
+    @option Features::Vector{Feature}
+end
+
+
 
 
 #-===========================================================================-# gx_TourPrimitives

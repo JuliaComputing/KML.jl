@@ -1,13 +1,24 @@
 using KML
 using GeoInterface
 using Test
+using XML
 
-@testset "KML" begin
 @testset "Empty Constructors" begin
     for T in KML.all_concrete_subtypes(KML.Object)
         @test T() isa T
     end
+    @testset "Empty constructor roundtrips with XML.Node" begin
+        for T in KML.all_concrete_subtypes(KML.Object)
+            o = T()
+            n = XML.Node(o)
+            @test occursin(XML.tag(n), replace(string(T), '_' => ':'))
+            o2 = object(n)
+            @test o2 isa T
+            @test o == o2
+        end
+    end
 end
+
 
 @testset "GeoInterface" begin
     @test GeoInterface.testgeometry(Point(coordinates=(0,0)))
@@ -26,14 +37,13 @@ end
 end
 
 @testset "KMLFile" begin
-    file = KMLFile(joinpath(@__DIR__, "example.kml"))
+    file = read(joinpath(@__DIR__, "example.kml"), KMLFile)
     @test file isa KMLFile
 
-    write("test.kml", file)
+    temp = tempname()
 
-    file2 = KMLFile("test.kml")
+    XML.write(temp, file)
+
+    file2 = read(temp, KMLFile)
     @test file == file2
-
-    rm("test.kml", force=true)
 end
-end # KML
