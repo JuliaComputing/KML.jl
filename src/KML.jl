@@ -64,15 +64,9 @@ const NoAttributes = KMLElement{()}
 
 function Base.show(io::IO, o::T) where {names, T <: KMLElement{names}}
     printstyled(io, T; color=:light_cyan)
-
-    attrs = XML.attributes(o)
-    if !isempty(attrs)
-        print(io, '(', join(["$k=$(repr(v))" for (k,v) in attrs], ", ")..., ')')
-    end
-    n_children = sum(!isnothing(getfield(o, field)) for field in setdiff(fieldnames(T), names); init=0)
-    if n_children > 0
-        printstyled(io, " (", n_children, " children" ,')'; color=:light_black)
-    end
+    print(io, ": [")
+    show(io, Node(o))
+    print(io, ']')
 end
 
 # XML Interface
@@ -139,28 +133,22 @@ Base.push!(o::KMLFile, el::Union{Node, KMLElement}) = push!(o.children, el)
 
 # TODO: print better summary of file
 function Base.show(io::IO, o::KMLFile)
-    print(io, "KMLFile (")
-    n = length(XML.children(o))
-    if n == 1
-        print(io, "1 child")
-    else
-        print(io, n, " children")
-    end
-    println(io, " inside <kml>)")
+    print(io, "KMLFile ")
+    printstyled(io, "($(Base.summarysize(o)) B)"; color=:light_black)
 end
 
 function Node(o::KMLFile)
-    Node(XML.Document, nothing, nothing, nothing, [
-        Node(XML.Declaration, Dict("version" => "1.0", "encoding" => "UTF-8")),
-        Node(XML.Element, "kml", Dict("xmlns" => "http://earth.google.com/kml/2.2"),
-        Node.(o.children)...)
-    ])
+    children = [
+        Node(XML.Declaration, nothing, Dict("version" => "1.0", "encoding" => "UTF-8")),
+        Node(XML.Element, "kml", Dict("xmlns" => "http://earth.google.com/kml/2.2"), nothing, Node.(o.children))
+    ]
+    Node(XML.Document, nothing, nothing, nothing, children)
 end
 
 
 Base.:(==)(a::KMLFile, b::KMLFile) = all(getfield(a,f) == getfield(b,f) for f in fieldnames(KMLFile))
 
-# read/write
+# read
 Base.read(io::IO, ::Type{KMLFile}) = KMLFile(read(io, XML.Node))
 Base.read(filename::AbstractString, ::Type{KMLFile}) = KMLFile(read(filename, XML.Node))
 function KMLFile(doc::XML.Node)
@@ -169,9 +157,10 @@ function KMLFile(doc::XML.Node)
     KMLFile(map(object, XML.children(doc[i])))
 end
 
-XML.write(io::IO, o::KMLFile) = XML.write(io, Node(o))
-XML.write(file::AbstractString, o::KMLFile) = XML.write(file, Node(o))
-XML.write(o::KMLFile) = XML.write(Node(o))
+# XML.write
+XML.write(io::IO, o::KMLFile; kw...) = XML.write(io, Node(o); kw...)
+XML.write(file::AbstractString, o::KMLFile; kw...) = XML.write(file, Node(o); kw...)
+XML.write(o::KMLFile; kw...) = XML.write(Node(o); kw...)
 
 #-----------------------------------------------------------------------------# Object
 abstract type Object <: KMLElement{(:id, :targetId)} end
