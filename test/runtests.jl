@@ -36,7 +36,7 @@ end
     @test GeoInterface.testfeature(Placemark(Geometry=p))
 end
 
-@testset "KMLFile" begin
+@testset "KMLFile roundtrip" begin
     file = read(joinpath(@__DIR__, "example.kml"), KMLFile)
     @test file isa KMLFile
 
