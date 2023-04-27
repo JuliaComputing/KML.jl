@@ -42,7 +42,7 @@ end
 
     temp = tempname()
 
-    XML.write(temp, file)
+    KML.write(temp, file)
 
     file2 = read(temp, KMLFile)
     @test file == file2
