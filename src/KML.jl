@@ -134,7 +134,7 @@ Base.push!(o::KMLFile, el::Union{Node, KMLElement}) = push!(o.children, el)
 # TODO: print better summary of file
 function Base.show(io::IO, o::KMLFile)
     print(io, "KMLFile ")
-    printstyled(io, "($(Base.summarysize(o)) B)"; color=:light_black)
+    printstyled(io, '(', Base.format_bytes(Base.summarysize(o)), ')'; color=:light_black)
 end
 
 function Node(o::KMLFile)
@@ -157,12 +157,11 @@ function KMLFile(doc::XML.Node)
     KMLFile(map(object, XML.children(doc[i])))
 end
 
-# XML.write
-write = XML.write
+Writable = Union{KMLFile, KMLElement, Node}
 
-write(io::IO, o::KMLFile; kw...) = write(io, Node(o); kw...)
-write(file::AbstractString, o::KMLFile; kw...) = write(file, Node(o); kw...)
-write(o::KMLFile; kw...) = write(Node(o); kw...)
+write(io::IO, o::Writable; kw...) = XML.write(io, Node(o); kw...)
+write(file::AbstractString, o::Writable; kw...) = XML.write(file, Node(o); kw...)
+write(o::Writable; kw...) = XML.write(Node(o); kw...)
 
 #-----------------------------------------------------------------------------# Object
 abstract type Object <: KMLElement{(:id, :targetId)} end

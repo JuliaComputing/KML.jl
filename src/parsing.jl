@@ -104,8 +104,8 @@ function autosetfield!(o::Union{Object,KMLElement}, sym::Symbol, x::String)
     T <: Enums.AbstractKMLEnum && return setfield!(o, sym, T(x))
     if sym == :coordinates
         val = occursin('\n', x) ?
-            eval.(Meta.parse.(split(x, '\n'))) :
-            eval(Meta.parse(x))
+            [Tuple(parse.(Float64, split(s, ','))) for s in split(x, '\n')] :
+            Tuple(parse.(Float64, split(x, ',')))
         return setfield!(o, sym, val)
     end
     setfield!(o, sym, x)

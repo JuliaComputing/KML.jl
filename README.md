@@ -46,9 +46,19 @@ file = KMLFile(
 ```julia
 path = download("https://developers.google.com/kml/documentation/KML_Samples.kml")
 
-file = KMLFile(path)
+file = read(path, KMLFile)
 ```
 
+
+### Writing
+
+```julia
+KML.write(filename::String, kml_file)  # Write to file
+
+KML.write(io::IO, kml_file)  # Write to IO stream
+
+KML.write(kml_file)  # String
+```
 
 <br>
 <br>
