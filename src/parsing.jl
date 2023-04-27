@@ -1,6 +1,6 @@
 #-----------------------------------------------------------------------------# XML.Node ←→ KMLElement
 typetag(T) = replace(string(T), r"([a-zA-Z]*\.)" => "", "_" => ":")
-tuple2string(x) = replace(string(x), "), (" => "\n", "[(" => "", ")]" => "")
+tuple2string(x) = replace(string(x), "), (" => "\n", "[(" => "", ")]" => "", ')' => "", '(' => "")
 
 # KMLElement → Node
 Node(o::T) where {T<:Enums.AbstractKMLEnum} = XML.Element(typetag(T), o.value)

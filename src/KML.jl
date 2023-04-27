@@ -158,9 +158,11 @@ function KMLFile(doc::XML.Node)
 end
 
 # XML.write
-XML.write(io::IO, o::KMLFile; kw...) = XML.write(io, Node(o); kw...)
-XML.write(file::AbstractString, o::KMLFile; kw...) = XML.write(file, Node(o); kw...)
-XML.write(o::KMLFile; kw...) = XML.write(Node(o); kw...)
+write = XML.write
+
+write(io::IO, o::KMLFile; kw...) = write(io, Node(o); kw...)
+write(file::AbstractString, o::KMLFile; kw...) = write(file, Node(o); kw...)
+write(o::KMLFile; kw...) = write(Node(o); kw...)
 
 #-----------------------------------------------------------------------------# Object
 abstract type Object <: KMLElement{(:id, :targetId)} end
