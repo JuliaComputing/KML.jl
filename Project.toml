@@ -1,7 +1,7 @@
 name = "KML"
 uuid = "1284bf3a-1e3d-4f4e-a7a9-b9d235a28f35"
 authors = ["Josh Day <emailjoshday@gmail.com> and contributors"]
-version = "0.2.0"
+version = "0.2.1"
 
 [deps]
 GeoInterface = "cf35fbd7-0cd7-5166-be24-54bfbe79505f"
@@ -12,7 +12,7 @@ XML = "72c71f33-b9b6-44de-8c94-c961784809e2"
 [compat]
 GeoInterface = "1"
 OrderedCollections = "1"
-XML = "0.2.1"
+XML = "0.2.2"
 julia = "1"
 
 [extras]

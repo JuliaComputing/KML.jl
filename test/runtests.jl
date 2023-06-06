@@ -47,3 +47,8 @@ end
     file2 = read(temp, KMLFile)
     @test file == file2
 end
+
+@testset "Issue Coverage" begin
+    # https://github.com/JuliaComputing/KML.jl/issues/8
+    @test_warn "Unhandled case" read(joinpath(@__DIR__, "outside_spec.kml"), KMLFile)
+end

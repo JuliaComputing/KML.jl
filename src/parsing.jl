@@ -66,7 +66,7 @@ function add_element!(o::Union{Object,KMLElement}, child::Node)
     elseif hasfield(typeof(o), sym) && XML.is_simple(child)
         autosetfield!(o, sym, XML.value(only(child)))
     else
-        error("Not possible: $o with child $child")
+        @warn "Unhandled case encountered while trying to add child with tag `$sym` to parent `$o`."
     end
 
     @label child_is_object
