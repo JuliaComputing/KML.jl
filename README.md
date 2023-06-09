@@ -15,7 +15,7 @@ package.
 ```julia
 file = KMLFile(
     Document(
-        Features = Feature[
+        Features = [
             Placemark(
                 Geometry = Point(coordinates=(77.0369, 38.9072)),
                 name = "Washington, D.C."
