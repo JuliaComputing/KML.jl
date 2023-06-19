@@ -73,7 +73,7 @@ end
 XML.tag(o::KMLElement) = name(o)
 
 function XML.attributes(o::T) where {names, T <: KMLElement{names}}
-    Dict(k => getfield(o, k) for k in names if !isnothing(getfield(o, k)))
+    OrderedDict(k => getfield(o, k) for k in names if !isnothing(getfield(o, k)))
 end
 
 XML.children(o::KMLElement) = XML.children(Node(o))
@@ -139,8 +139,8 @@ end
 
 function Node(o::KMLFile)
     children = [
-        Node(XML.Declaration, nothing, Dict("version" => "1.0", "encoding" => "UTF-8")),
-        Node(XML.Element, "kml", Dict("xmlns" => "http://earth.google.com/kml/2.2"), nothing, Node.(o.children))
+        Node(XML.Declaration, nothing, OrderedDict("version" => "1.0", "encoding" => "UTF-8")),
+        Node(XML.Element, "kml", OrderedDict("xmlns" => "http://earth.google.com/kml/2.2"), nothing, Node.(o.children))
     ]
     Node(XML.Document, nothing, nothing, nothing, children)
 end
@@ -335,7 +335,7 @@ Base.@kwdef mutable struct Placemark <: Feature
 end
 GeoInterface.isfeature(o::Type{Placemark}) = true
 GeoInterface.trait(o::Placemark) = GeoInterface.FeatureTrait()
-GeoInterface.properties(o::Placemark) = NamedTuple(Dict(f => getfield(o,f) for f in setdiff(fieldnames(Placemark), [:Geometry])))
+GeoInterface.properties(o::Placemark) = NamedTuple(OrderedDict(f => getfield(o,f) for f in setdiff(fieldnames(Placemark), [:Geometry])))
 GeoInterface.geometry(o::Placemark) = o.Geometry
 
 
