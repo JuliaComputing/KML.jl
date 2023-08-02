@@ -157,6 +157,8 @@ function KMLFile(doc::XML.Node)
     KMLFile(map(object, XML.children(doc[i])))
 end
 
+Base.parse(::Type{KMLFile}, s::AbstractString) = KMLFile(XML.parse(s, Node))
+
 Writable = Union{KMLFile, KMLElement, Node}
 
 write(io::IO, o::Writable; kw...) = XML.write(io, Node(o); kw...)

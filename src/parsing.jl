@@ -1,6 +1,8 @@
 #-----------------------------------------------------------------------------# XML.Node ←→ KMLElement
 typetag(T) = replace(string(T), r"([a-zA-Z]*\.)" => "", "_" => ":")
-tuple2string(x) = replace(string(x), "), (" => "\n", "[(" => "", ")]" => "", ')' => "", '(' => "")
+
+coordinate_string(x::Tuple) = join(x, ',')
+coordinate_string(x::Vector) = join(coordinate_string.(x), '\n')
 
 # KMLElement → Node
 Node(o::T) where {T<:Enums.AbstractKMLEnum} = XML.Element(typetag(T), o.value)
@@ -18,7 +20,7 @@ function Node(o::T) where {names, T <: KMLElement{names}}
         elseif field == :outerBoundaryIs
             push!(children, XML.Element(:outerBoundaryIs, Node(val)))
         elseif field == :coordinates
-            push!(children, XML.Element("coordinates", tuple2string(val)))
+            push!(children, XML.Element("coordinates", coordinate_string(val)))
         elseif val isa KMLElement
             push!(children, Node(val))
         elseif val isa Vector{<:KMLElement}
