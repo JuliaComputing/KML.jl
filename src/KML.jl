@@ -392,6 +392,7 @@ end
 GeoInterface.geomtrait(o::Polygon) = GeoInterface.PolygonTrait()
 GeoInterface.ngeom(::GeoInterface.PolygonTrait, o::Polygon) = 1 + length(o.innerBoundaryIs)
 GeoInterface.getgeom(::GeoInterface.PolygonTrait, o::Polygon, i) = i == 1 ? o.outerBoundaryIs : o.innerBoundaryIs[i-1]
+GeoInterface.ncoord(::GeoInterface.PolygonTrait, o::Polygon) = length(first(o.outerBoundaryIs.coordinates))
 
 #-----------------------------------------------------------------------------# MultiGeometry <: Geometry
 Base.@kwdef mutable struct MultiGeometry <: Geometry
