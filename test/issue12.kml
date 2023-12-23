@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns:kml="http://www.opengis.net/kml/2.2">
+<Document>
+	<name>tmp.kml</name>
+	<Placemark>
+		<name>tmp</name>
+		<styleUrl>#m_ylw-pushpin</styleUrl>
+		<Polygon>
+			<tessellate>1</tessellate>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-50.80770360421555,27.50794679203254,0 -46.63827492868646,32.0230059721323,0 -54.85996847570588,35.7028706316008,0 -50.80770360421555,27.50794679203254,0
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+</Document>
+</kml>

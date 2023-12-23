@@ -3,6 +3,14 @@ using GeoInterface
 using Test
 using XML
 
+@testset "Issue Coverage" begin
+    # https://github.com/JuliaComputing/KML.jl/issues/8
+    @test_warn "Unhandled case" read(joinpath(@__DIR__, "outside_spec.kml"), KMLFile)
+
+    # https://github.com/JuliaComputing/KML.jl/issues/12
+    @test read(joinpath(@__DIR__, "issue12.kml"), KMLFile) isa KMLFile
+end
+
 @testset "Empty Constructors" begin
     for T in KML.all_concrete_subtypes(KML.Object)
         @test T() isa T
@@ -46,9 +54,4 @@ end
 
     file2 = read(temp, KMLFile)
     @test file == file2
-end
-
-@testset "Issue Coverage" begin
-    # https://github.com/JuliaComputing/KML.jl/issues/8
-    @test_warn "Unhandled case" read(joinpath(@__DIR__, "outside_spec.kml"), KMLFile)
 end

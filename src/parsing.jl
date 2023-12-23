@@ -104,10 +104,17 @@ function autosetfield!(o::Union{Object,KMLElement}, sym::Symbol, x::String)
     T <: Number && return setfield!(o, sym, parse(T, x))
     T <: AbstractString && return setfield!(o, sym, x)
     T <: Enums.AbstractKMLEnum && return setfield!(o, sym, T(x))
+    # if sym == :coordinates
+    #     val = occursin('\n', x) ?
+    #         [Tuple(parse.(Float64, split(s, ','))) for s in split(x, '\n')] :
+    #         Tuple(parse.(Float64, split(x, ',')))
+    #     return setfield!(o, sym, val)
+    # end
     if sym == :coordinates
-        val = occursin('\n', x) ?
-            [Tuple(parse.(Float64, split(s, ','))) for s in split(x, '\n')] :
-            Tuple(parse.(Float64, split(x, ',')))
+        val = [Tuple(parse.(Float64, split(v, ','))) for v in split(x)]
+        if length(val) == 1
+            val = val[1]
+        end
         return setfield!(o, sym, val)
     end
     setfield!(o, sym, x)
