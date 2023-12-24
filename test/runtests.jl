@@ -55,3 +55,13 @@ end
     file2 = read(temp, KMLFile)
     @test file == file2
 end
+
+@testset "coordinates" begin
+    # `coordinates` are tuple
+    s = "<Point><coordinates>1,2,3</coordinates></Point>"
+    @test KML.object(XML.parse(s, XML.Node)[1]) isa Point
+
+    # `coordinates` are vector of tuples
+    s = "<LineString><coordinates>1,2,3</coordinates></LineString>"
+    @test KML.object(XML.parse(s, XML.Node)[1]) isa LineString
+end
